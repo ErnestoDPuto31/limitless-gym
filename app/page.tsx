@@ -1,65 +1,531 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import { logDailySession, registerMember, loginMember, renewMember } from "@/app/actions/gymActions";
+
+
+export default function CheckInPage () {
+  // ─── CLOCK STATE ───
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // ─── DAILY SESSION STATE ───
+  const [isDailyOpen, setIsDailyOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [isDailySuccess, setIsDailySuccess] = useState(false);
+
+  // ─── MONTHLY PORTAL MASTER STATES ───
+  const [isMonthlyOpen, setIsMonthlyOpen] = useState(false);
+  const [monthlyTab, setMonthlyTab] = useState("login"); // "login", "register", or "renew"
+  const [isMonthlySuccess, setIsMonthlySuccess] = useState(false);
+  const [successMode, setSuccessMode] = useState(""); // "logged_in", "registered", or "renewed"
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ─── INPUT FIELDS STATES ───
+  const [loginMemberId, setLoginMemberId] = useState("");
+  const [loginPhone, setLoginPhone] = useState("");
+  const [loginPin, setLoginPin] = useState("");
+
+  const [registerName, setRegisterName] = useState("");
+  const [registerPhone, setRegisterPhone] = useState("");
+  const [generatedId, setGeneratedId] = useState(""); 
+
+  const [registerEmergencyPhone, setRegisterEmergencyPhone] = useState("");
+  const [registerPin, setRegisterPin] = useState("");
+  const [registerDob, setRegisterDob] = useState("");
+
+  const [renewMemberId, setRenewMemberId] = useState("");
+  const [renewPhone, setRenewPhone] = useState("");
+
+  // Error Message Trackers
+  const [loginError, setLoginError] = useState("");
+  const [loginPinError, setLoginPinError] = useState("");
+  const [registerError, setRegisterError] = useState("");
+  const [renewError, setRenewError] = useState("");
+
+  const [registerEmergencyError, setRegisterEmergencyError] = useState("");
+  const [registerPinError, setRegisterPinError] = useState("");
+  const [registerDobError, setRegisterDobError] = useState("");
+
+  // ─── MEMBER ID VALIDATION & AUTO-FORMATTER ───
+const formatAndValidateMemberId = (input: string) => {
+  let clean = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+  if (clean.startsWith("LMT") && clean.length > 3) {
+    const numbersPart = clean.slice(3).replace(/\D/g, ""); 
+    clean = `LMT-${numbersPart.slice(0, 4)}`; 
+  } else if (!clean.startsWith("LMT") && clean.length > 0) {
+    const numbersOnly = clean.replace(/\D/g, "");
+    clean = `LMT-${numbersOnly.slice(0, 4)}`;
+  }
+
+  const isValid = /^LMT-\d{4}$/.test(clean);
+
+  return { formattedId: clean, isValid };
+};
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Format Time & Date
+  const formattedTime = currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const formattedDate = currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+  // ─── STRICTOR PH PHONE VALIDATION ───
+  const validatePHNumber = (input: string) => {
+    const numbersOnly = input.replace(/\D/g, ""); 
+    const isValid = /^9\d{9}$/.test(numbersOnly);
+    return { numbersOnly, isValid };
+  };
+
+  const handlePhoneTyping = (text: string, setterFn: (val: string) => void, errorCleaner: (val: string) => void) => {
+    const { numbersOnly } = validatePHNumber(text);
+    if (numbersOnly.length <= 10) {
+      setterFn(numbersOnly);
+      errorCleaner(""); 
+    }
+  };
+
+  // ─── MASTER RESET FUNCTION ───
+  const closeMonthlyPortal = () => {
+    setIsMonthlyOpen(false);
+    setIsMonthlySuccess(false);
+    setSuccessMode("");
+    setLoginMemberId("");
+    setLoginPhone("");
+    setLoginPin("");
+    setRegisterName("");
+    setRegisterPhone("");
+    setRegisterEmergencyPhone("");
+    setRegisterPin("");
+    setRegisterDob("");
+    setRenewMemberId("");
+    setRenewPhone("");
+    setLoginError("");
+    setLoginPinError(""); 
+    setRegisterError("");
+    setRenewError("");
+  };
+
+  // ─── AGE VALIDATION HELPER ───
+  const validateAge = (dobString: string) => {
+    if (!dobString) return { isValid: false, message: "Date of birth is required." };
+    const dob = new Date(dobString);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    
+    // Adjust age if they haven't had their birthday yet this year
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    
+    if (age < 8) return { isValid: false, message: "Must be 8 or older to register." };
+    return { isValid: true, message: "" };
+  };
+
+// ─── SUBMIT ACTION: DAILY WALK-IN ───
+const handleDailySubmit = async () => {
+  if (!fullName.trim() || isSubmitting) return;
+  
+  setIsSubmitting(true);
+  const result = await logDailySession(fullName);
+  setIsSubmitting(false);
+
+  if (result.success) {
+    setIsDailySuccess(true);
+    setTimeout(() => {
+      setIsDailyOpen(false);
+      setIsDailySuccess(false);
+      setFullName("");
+    }, 2500);
+  } else {
+    alert(`Error: ${result.error}`);
+  }
+};
+
+// ─── SUBMIT ACTION: MONTHLY LOG IN ───
+const handleMonthlyLoginSubmit = async () => {
+  const { isValid: isIdValid } = formatAndValidateMemberId(loginMemberId);
+  if (!isIdValid) {
+    setLoginError("Invalid Member ID format. Must look like LMT-1234");
+    return;
+  }
+
+  const { isValid: isPhoneValid } = validatePHNumber(loginPhone);
+  if (!isPhoneValid) {
+    setLoginError("Please enter a valid 10-digit mobile number.");
+    return;
+  }
+
+  if (loginPin.length !== 4) {
+    setLoginPinError("PIN must be exactly 4 digits.");
+    return;
+  }
+  
+  if (isSubmitting) return;
+
+  setIsSubmitting(true);
+  const result = await loginMember(loginMemberId, `+63${loginPhone}`, loginPin);
+  setIsSubmitting(false);
+
+  if (result.success) {
+    setSuccessMode("logged_in");
+    setIsMonthlySuccess(true); 
+  } else {
+    setLoginError(result.error || "Login failed. Please try again.");
+  }
+};
+
+// ─── SUBMIT ACTION: MONTHLY NEW REGISTER ───
+const handleMonthlyRegisterSubmit = async () => {
+  if (!registerName.trim()) {
+    setRegisterError("Full name is required.");
+    return;
+  }
+
+  const { isValid: isPhoneValid } = validatePHNumber(registerPhone);
+  if (!isPhoneValid) {
+    setRegisterError("Valid 10-digit mobile number required.");
+    return;
+  }
+
+  const { isValid: isEmergencyValid } = validatePHNumber(registerEmergencyPhone);
+  if (!isEmergencyValid) {
+    setRegisterEmergencyError("Valid 10-digit emergency number required.");
+    return;
+  }
+
+  if (registerPin.length !== 4) {
+    setRegisterPinError("PIN must be exactly 4 digits.");
+    return;
+  }
+
+  const ageCheck = validateAge(registerDob);
+  if (!ageCheck.isValid) {
+    setRegisterDobError(ageCheck.message);
+    return;
+  }
+
+  if (isSubmitting) return;
+  setIsSubmitting(true);
+
+  const result = await registerMember({
+    fullName: registerName,
+    phone: `+63${registerPhone}`,
+    emergencyPhone: `+63${registerEmergencyPhone}`,
+    dateOfBirth: registerDob,
+    pin: registerPin
+  });
+
+  setIsSubmitting(false);
+
+  if (result.success && result.memberId) {
+    setGeneratedId(result.memberId);
+    setSuccessMode("registered");
+    setIsMonthlySuccess(true);
+  } else {
+    setRegisterError(result.error || "Failed to register account.");
+  }
+};
+
+  // ─── SUBMIT ACTION: MONTHLY MEMBERSHIP RENEWAL ───
+  const handleMonthlyRenewSubmit = async () => {
+  const { isValid: isIdValid } = formatAndValidateMemberId(renewMemberId);
+  if (!isIdValid) {
+    setRenewError("Invalid Member ID format. Must look like LMT-1234");
+    return;
+  }
+
+  const { isValid: isPhoneValid } = validatePHNumber(renewPhone);
+  if (!isPhoneValid) {
+    setRenewError("Please enter a valid 10-digit mobile number.");
+    return;
+  }
+
+  if (isSubmitting) return;
+  setIsSubmitting(true);
+
+  const result = await renewMember(renewMemberId, `+63${renewPhone}`);
+  setIsSubmitting(false);
+
+  if (result.success) {
+    setSuccessMode("renewed");
+    setIsMonthlySuccess(true); 
+  } else {
+    setRenewError(result.error || "Could not process renewal request.");
+  }
+};
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background text-foreground font-inter flex flex-col justify-between p-6 md:p-10 select-none relative">
+      
+      {/* HEADER */}
+      <header className="flex items-center justify-between border-b border-border pb-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-accent text-accent-foreground p-2.5 rounded-xl flex items-center justify-center shadow-lg shadow-accent/10">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18.5 5.5 3 3"/><path d="m2.5 15.5 3 3"/><path d="m15.5 2.5 3 3"/><path d="m5.5 18.5 3 3"/><path d="M10 14 1 5"/><path d="m23 19-9-9"/></svg>
+          </div>
+          <span className="font-montserrat font-black text-xl tracking-wider uppercase">Limitless Fitness <span className="text-accent">Gym</span></span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="text-right">
+          <div className="font-montserrat font-black text-2xl tracking-tight">{formattedTime}</div>
+          <div className="text-muted-foreground text-xs md:text-sm font-medium mt-0.5">{formattedDate}</div>
+        </div>
+      </header>
+
+      {/* PORTAL MAIN COMPONENT GRAPHICS */}
+      <main className="flex-1 flex flex-col items-center justify-center my-auto max-w-4xl w-full mx-auto text-center">
+        <span className="text-muted-foreground font-montserrat font-bold tracking-[0.25em] text-xs uppercase mb-4">Member Check-In</span>
+        <h1 className="font-montserrat font-black text-5xl md:text-7xl tracking-tight leading-none uppercase mb-4">Ready to <br /><span className="text-accent">Crush it?</span></h1>
+        <p className="text-muted-foreground text-base md:text-lg max-w-md mx-auto font-medium mb-12">Select your session type to get started.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+          <button onClick={() => setIsDailyOpen(true)} className="bg-accent text-accent-foreground p-8 rounded-2xl text-left flex flex-col justify-between h-56 transition-all duration-200 active:scale-[0.98] cursor-pointer group hover:brightness-110 shadow-xl shadow-accent/5">
+            <div className="bg-black/10 p-3 rounded-xl w-fit"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div>
+              <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1">Log Daily Session</h3>
+              <p className="font-semibold text-sm opacity-80">Walk-in • PHP 80</p>
+            </div>
+          </button>
+
+          <button onClick={() => setIsMonthlyOpen(true)} className="bg-card border border-border text-foreground p-8 rounded-2xl text-left flex flex-col justify-between h-56 transition-all duration-200 active:scale-[0.98] cursor-pointer hover:bg-muted/30 group">
+            <div className="bg-muted p-3 rounded-xl w-fit text-muted-foreground group-hover:text-accent transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div>
+              <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1 group-hover:text-accent transition-colors">Monthly Member</h3>
+              <p className="text-muted-foreground font-semibold text-sm">Subscription • PHP 800/mo</p>
+            </div>
+          </button>
         </div>
       </main>
+
+      {/* FOOTER */}
+      <footer className="flex items-center justify-between text-xs font-medium text-muted-foreground/60 border-t border-border/40 pt-6">
+        <div>© {currentTime.getFullYear()} Limitless Fitness Gym. All rights reserved.</div>
+        <button className="hover:text-accent transition-colors flex items-center gap-1.5 cursor-pointer">
+          Admin Access <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </footer>
+
+      {/* ─── MODAL 1: DAILY SESSION ─── */}
+      {isDailyOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="h-0.75 w-full bg-accent" />
+            <div className="p-8">
+              {!isDailySuccess ? (
+                <div className="flex flex-col gap-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-[0.2em] font-bold mb-1 font-montserrat">DAILY SESSION</p>
+                      <h2 className="text-neutral-100 text-2xl font-black tracking-tight font-montserrat uppercase">Log Your Visit</h2>
+                    </div>
+                    <button onClick={() => { setIsDailyOpen(false); setFullName(""); }} className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Your Name</label>
+                    <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Jana Villanueva" autoFocus className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
+                  </div>
+                  <button onClick={handleDailySubmit} disabled={!fullName.trim()} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer">LOG SESSION</button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-6 text-center">
+                  <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-5 border border-accent/20"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-accent"><path d="M20 6 9 17l-5-5"/></svg></div>
+                  <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">{fullName}</h3>
+                  <p className="text-muted-foreground text-sm font-medium">Session logged. Have a great workout!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 2: MONTHLY MEMBER (LOCKS ON SUCCESS FOR CAMERA PICTURES) ─── */}
+      {isMonthlyOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="h-0.75 w-full bg-accent" />
+            
+            <div className="p-8">
+              {!isMonthlySuccess ? (
+                <div className="flex flex-col gap-6">
+                  
+                  {/* Top Header Block */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-[0.2em] font-bold mb-1 font-montserrat">MONTHLY MEMBERSHIP</p>
+                      <h2 className="text-neutral-100 text-2xl font-black tracking-tight font-montserrat uppercase">Access Portal</h2>
+                    </div>
+                    {/* Header close cross triggers full cleanup function */}
+                    <button onClick={closeMonthlyPortal} className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                  </div>
+
+                  {/* 3-COLUMN TABS SYSTEM */}
+                  <div className="grid grid-cols-3 bg-[#2A2A2C] p-1 rounded-xl border border-neutral-800">
+                    <button onClick={() => setMonthlyTab("login")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "login" ? "bg-accent text-accent-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>LOG IN</button>
+                    <button onClick={() => setMonthlyTab("register")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "register" ? "bg-accent text-accent-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>REGISTER</button>
+                    <button onClick={() => setMonthlyTab("renew")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "renew" ? "bg-accent text-accent-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>RENEW</button>
+                  </div>
+
+                  {/* TAB 1: MEMBER LOG IN */}
+                  {monthlyTab === "login" && (
+                    <div className="flex flex-col gap-4">
+                      
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Member ID</label>
+                        <input type="text" value={loginMemberId} onChange={(e) => { setLoginMemberId(e.target.value.toUpperCase()); setLoginError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
+                      </div>
+
+                      {/* Phone & PIN Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Registered Mobile</label>
+                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                            <span className="px-3 text-sm font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3.5 font-montserrat">+63</span>
+                            <input type="text" value={loginPhone} onChange={(e) => handlePhoneTyping(e.target.value, setLoginPhone, setLoginError)} placeholder="917 123 4567" className="w-full px-4 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
+                          </div>
+                          {loginError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{loginError}</p>}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">4-Digit PIN</label>
+                          <input type="password" maxLength={4} value={loginPin} onChange={(e) => { setLoginPin(e.target.value.replace(/\D/g, "")); setLoginPinError(""); }} placeholder="••••" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors text-center tracking-[0.5em]" />
+                          {loginPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{loginPinError}</p>}
+                        </div>
+                      </div>
+
+                      <button onClick={handleMonthlyLoginSubmit} disabled={!loginMemberId.trim() || loginPhone.length < 10 || loginPin.length !== 4} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">CONFIRM CHECK-IN</button>
+                    </div>
+                  )}
+
+                  {/* TAB 2: REGISTER */}
+                  {monthlyTab === "register" && (
+                    <div className="flex flex-col gap-4">
+                      
+                      {/* Name Row */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Full Name</label>
+                        <input type="text" value={registerName} onChange={(e) => { setRegisterName(e.target.value); setRegisterError(""); }} placeholder="e.g. Juan Dela Cruz" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
+                      </div>
+
+                      {/* Phone & Emergency Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Mobile No.</label>
+                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                            <span className="px-2.5 text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3 font-montserrat">+63</span>
+                            <input type="text" value={registerPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRegisterPhone, setRegisterError)} placeholder="917 123 4567" className="w-full px-3 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
+                          </div>
+                          {registerError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerError}</p>}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat text-accent">Emergency No.</label>
+                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                            <span className="px-2.5 text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3 font-montserrat">+63</span>
+                            <input type="text" value={registerEmergencyPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRegisterEmergencyPhone, setRegisterEmergencyError)} placeholder="917 123 4567" className="w-full px-3 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
+                          </div>
+                          {registerEmergencyError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerEmergencyError}</p>}
+                        </div>
+                      </div>
+
+                      {/* DOB & PIN Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Date of Birth</label>
+                          <input type="date" value={registerDob} onChange={(e) => { setRegisterDob(e.target.value); setRegisterDobError(""); }} className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 text-sm font-medium outline-none focus:border-accent/40 transition-colors scheme-dark" />
+                          {registerDobError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerDobError}</p>}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">4-Digit PIN</label>
+                          <input type="password" maxLength={4} value={registerPin} onChange={(e) => { setRegisterPin(e.target.value.replace(/\D/g, "")); setRegisterPinError(""); }} placeholder="••••" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors text-center tracking-[0.5em]" />
+                          {registerPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerPinError}</p>}
+                        </div>
+                      </div>
+
+                      <button onClick={handleMonthlyRegisterSubmit} disabled={!registerName.trim() || registerPhone.length < 10 || registerEmergencyPhone.length < 10 || registerPin.length !== 4 || !registerDob} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-1">CREATE MEMBERSHIP</button>
+                    </div>
+                  )}
+
+                  {/* TAB 3: RENEW */}
+                  {monthlyTab === "renew" && (
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Your Member ID</label>
+                        <input type="text" value={renewMemberId} onChange={(e) => { setRenewMemberId(e.target.value.toUpperCase()); setRenewError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Associated Mobile Number</label>
+                        <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                          <span className="px-3 text-sm font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3.5 font-montserrat">+63</span>
+                          <input type="text" value={renewPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRenewPhone, setRenewError)} placeholder="917 123 4567" className="w-full px-4 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
+                        </div>
+                        {renewError && <p className="text-red-500 text-[11px] font-semibold mt-0.5 tracking-wide">{renewError}</p>}
+                      </div>
+                      <button onClick={handleMonthlyRenewSubmit} disabled={!renewMemberId.trim() || renewPhone.length < 10} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">PROCESS 30-DAY RENEWAL</button>
+                    </div>
+                  )}
+
+                </div>
+              ) : (
+                
+                // ─── STABLE SUCCESS LAYOUT CONTAINER ───
+                <div className="flex flex-col items-center py-2 text-center">
+        
+                  <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-5 border border-accent/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-accent"><path d="M20 6 9 17l-5-5"/></svg>
+                  </div>
+                  
+                  {/* CONDITION A: LOGGED IN OK */}
+                  {successMode === "logged_in" && (
+                    <>
+                      <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">ACCESS GRANTED</h3>
+                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">ID <span className="text-accent font-bold">{loginMemberId}</span> verified successfully.<br />Welcome back to Limitless Fitness Gym!</p>
+                    </>
+                  )}
+
+                  {/* CONDITION B: BRAND NEW REGISTERED ACCOUNT (Takes Center Stage) */}
+                  {successMode === "register" || successMode === "registered" ? (
+                    <>
+                      <div className="bg-neutral-900 border border-neutral-800 px-6 py-4 rounded-xl w-full mb-4">
+                        <p className="text-neutral-500 text-[9px] uppercase tracking-[0.2em] font-bold font-montserrat mb-1">YOUR EXCLUSIVE KEY</p>
+                        <h3 className="text-accent text-3xl font-black tracking-widest font-montserrat select-text">{generatedId}</h3>
+                      </div>
+                      <p className="text-neutral-100 text-sm uppercase tracking-wider font-black font-montserrat mb-2">Registration Complete</p>
+                      <p className="text-muted-foreground text-xs font-medium px-2 leading-relaxed mb-1">
+                        Please <span className="text-neutral-200 font-bold underline decoration-accent">TAKE A PICTURE</span> or write down this Member ID code to check-in for future gym sessions.
+                      </p>
+                      <p className="text-neutral-500 text-[10px] font-medium italic mt-2">
+                        An SMS confirmation has been pushed to +63 {registerPhone}
+                      </p>
+                    </>
+                  ) : null}
+
+                  {/* CONDITION C: ACCOUNT EXTENDED/RENEWED */}
+                  {successMode === "renewed" && (
+                    <>
+                      <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">RENEWAL SUCCESSFUL</h3>
+                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">Account <span className="text-accent font-bold">{renewMemberId}</span> extended for another 30 days.<br />Your status is active.</p>
+                    </>
+                  )}
+
+                  <button 
+                    onClick={closeMonthlyPortal} 
+                    className="w-full mt-6 py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat hover:brightness-110 shadow-lg shadow-accent/10 transition-all active:scale-[0.99] cursor-pointer"
+                  >
+                    GOT IT, CLOSE WINDOW
+                  </button>
+
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
