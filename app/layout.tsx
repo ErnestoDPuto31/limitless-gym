@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: "Official tablet management portal for Limitless Fitness Gym.",
 };
 
+
+
 export default function RootLayout({
   children,
 }: Readonly<{

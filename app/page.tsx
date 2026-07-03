@@ -4,6 +4,17 @@ import { useState, useEffect } from "react";
 import { logDailySession, registerMember, loginMember, renewMember, loginAdmin } from "@/app/actions/gymActions";
 import { useRouter } from "next/navigation";
 
+const Dumbbell = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="m6.5 6.5 11 11" />
+    <path d="m21 21-1-1" />
+    <path d="m3 3 1 1" />
+    <path d="m18 22 4-4" />
+    <path d="m2 6 4-4" />
+    <path d="m3 10 7-7" />
+    <path d="m14 21 7-7" />
+  </svg>
+);
 
 export default function CheckInPage () {
 
@@ -305,7 +316,7 @@ const handleAdminLoginSubmit = async () => {
       <header className="flex items-center justify-between border-b border-border pb-6">
         <div className="flex items-center gap-3">
           <div className="bg-accent text-accent-foreground p-2.5 rounded-xl flex items-center justify-center shadow-lg shadow-accent/10">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18.5 5.5 3 3"/><path d="m2.5 15.5 3 3"/><path d="m15.5 2.5 3 3"/><path d="m5.5 18.5 3 3"/><path d="M10 14 1 5"/><path d="m23 19-9-9"/></svg>
+            <Dumbbell className="h-4 w-4 stroke-[2.5]" />
           </div>
           <span className="font-montserrat font-black text-xl tracking-wider uppercase">Limitless Fitness <span className="text-accent">Gym</span></span>
         </div>
@@ -585,7 +596,7 @@ const handleAdminLoginSubmit = async () => {
             {/* Header branding block */}
             <div className="flex flex-col items-center text-center mb-8">
               <div className="bg-accent text-accent-foreground p-2 rounded-xl mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18.5 5.5 3 3"/><path d="m2.5 15.5 3 3"/><path d="m15.5 2.5 3 3"/><path d="m5.5 18.5 3 3"/><path d="M10 14 1 5"/><path d="m23 19-9-9"/></svg>
+                <Dumbbell className="h-4 w-4 stroke-[2.5]" />
               </div>
               <h2 className="font-montserrat font-black text-lg tracking-wider uppercase text-neutral-100">Limitless <span className="text-accent">Gym</span></h2>
               <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mt-0.5">Admin Portal</p>

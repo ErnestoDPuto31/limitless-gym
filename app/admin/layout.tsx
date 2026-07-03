@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
-// Initialize Supabase client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
@@ -101,7 +100,7 @@ export default function AdminLayout({
             </div>
             <div>
               <h1 className="font-black text-sm tracking-wider uppercase text-white">
-                Limitless <span className="text-[#DFFF00]">Gym</span>
+                Limitless Fitness <span className="text-[#DFFF00]">Gym</span>
               </h1>
               <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-500">
                 Admin Portal
