@@ -103,7 +103,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    /* FIXED CONTAINER: Added mx-auto and w-full to center beautifully on widescreen PCs */
+    <div className="space-y-6 max-w-4xl mx-auto w-full pb-10">
       {/* SIMPLE PAGE DESCRIPTOR */}
       <div>
         <h1 className="text-2xl font-black text-white uppercase tracking-wide">Settings</h1>
