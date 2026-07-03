@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getGymSettings } from "@/app/actions/settingsActions";
 import { logDailySession, registerMember, loginMember, renewMember, loginAdmin } from "@/app/actions/gymActions";
 import { useRouter } from "next/navigation";
 
@@ -20,16 +21,19 @@ export default function CheckInPage () {
 
   
     // ─── ADMIN LOGIN SYSTEM STATES ───
-  const router = useRouter(); // Initialize router instance
+  const router = useRouter(); 
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [adminError, setAdminError] = useState("");
 
+  const [dynamicGymName, setDynamicGymName] = useState("Limitless Gym");
+  const [dynamicDailyFee, setDynamicDailyFee] = useState(0);
+  const [dynamicMonthlyFee, setDynamicMonthlyFee] = useState(0);
+
   // ─── CLOCK STATE ───
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [mounted, setMounted] = useState(false);
 
   // ─── DAILY SESSION STATE ───
   const [isDailyOpen, setIsDailyOpen] = useState(false);
@@ -86,10 +90,22 @@ const formatAndValidateMemberId = (input: string) => {
   return { formattedId: clean, isValid };
 };
 
-  useEffect(() => {
+useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+
+    async function loadSettings() {
+      const result = await getGymSettings();
+      if (result.success && result.data) {
+        setDynamicGymName(result.data.gym_name);
+        setDynamicDailyFee(Number(result.data.daily_fee) || 0);
+        setDynamicMonthlyFee(Number(result.data.monthly_fee) || 0);
+      }
+    }
+    loadSettings();
     return () => clearInterval(timer);
   }, []);
+
+  
 
   // Format Time & Date
   const formattedTime = currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
@@ -154,7 +170,6 @@ const handleDailySubmit = async () => {
   
   setIsSubmitting(true);
   const result = await logDailySession(fullName);
-  setIsSubmitting(false);
 
   if (result.success) {
     setIsDailySuccess(true);
@@ -162,14 +177,18 @@ const handleDailySubmit = async () => {
       setIsDailyOpen(false);
       setIsDailySuccess(false);
       setFullName("");
+      setIsSubmitting(false); 
     }, 2500);
   } else {
+    setIsSubmitting(false);
     alert(`Error: ${result.error}`);
   }
 };
 
 // ─── SUBMIT ACTION: MONTHLY LOG IN ───
 const handleMonthlyLoginSubmit = async () => {
+  if (isSubmitting) return;
+
   const { isValid: isIdValid } = formatAndValidateMemberId(loginMemberId);
   if (!isIdValid) {
     setLoginError("Invalid Member ID format. Must look like LMT-1234");
@@ -187,8 +206,6 @@ const handleMonthlyLoginSubmit = async () => {
     return;
   }
   
-  if (isSubmitting) return;
-
   setIsSubmitting(true);
   const result = await loginMember(loginMemberId, `+63${loginPhone}`, loginPin);
   setIsSubmitting(false);
@@ -196,6 +213,9 @@ const handleMonthlyLoginSubmit = async () => {
   if (result.success) {
     setSuccessMode("logged_in");
     setIsMonthlySuccess(true); 
+    setLoginMemberId("");
+    setLoginPhone("");
+    setLoginPin("");
   } else {
     setLoginError(result.error || "Login failed. Please try again.");
   }
@@ -203,6 +223,8 @@ const handleMonthlyLoginSubmit = async () => {
 
 // ─── SUBMIT ACTION: MONTHLY NEW REGISTER ───
 const handleMonthlyRegisterSubmit = async () => {
+  if (isSubmitting) return;
+
   if (!registerName.trim()) {
     setRegisterError("Full name is required.");
     return;
@@ -231,9 +253,7 @@ const handleMonthlyRegisterSubmit = async () => {
     return;
   }
 
-  if (isSubmitting) return;
   setIsSubmitting(true);
-
   const result = await registerMember({
     fullName: registerName,
     phone: `+63${registerPhone}`,
@@ -241,20 +261,25 @@ const handleMonthlyRegisterSubmit = async () => {
     dateOfBirth: registerDob,
     pin: registerPin
   });
-
   setIsSubmitting(false);
 
   if (result.success && result.memberId) {
     setGeneratedId(result.memberId);
     setSuccessMode("registered");
     setIsMonthlySuccess(true);
+    setRegisterName("");
+    setRegisterEmergencyPhone("");
+    setRegisterDob("");
+    setRegisterPin("");
   } else {
     setRegisterError(result.error || "Failed to register account.");
   }
 };
 
-  // ─── SUBMIT ACTION: MONTHLY MEMBERSHIP RENEWAL ───
-  const handleMonthlyRenewSubmit = async () => {
+// ─── SUBMIT ACTION: MONTHLY MEMBERSHIP RENEWAL ───
+const handleMonthlyRenewSubmit = async () => {
+  if (isSubmitting) return;
+
   const { isValid: isIdValid } = formatAndValidateMemberId(renewMemberId);
   if (!isIdValid) {
     setRenewError("Invalid Member ID format. Must look like LMT-1234");
@@ -267,15 +292,15 @@ const handleMonthlyRegisterSubmit = async () => {
     return;
   }
 
-  if (isSubmitting) return;
   setIsSubmitting(true);
-
   const result = await renewMember(renewMemberId, `+63${renewPhone}`);
   setIsSubmitting(false);
 
   if (result.success) {
     setSuccessMode("renewed");
     setIsMonthlySuccess(true); 
+    setRenewMemberId("");
+    setRenewPhone("");
   } else {
     setRenewError(result.error || "Could not process renewal request.");
   }
@@ -283,7 +308,7 @@ const handleMonthlyRegisterSubmit = async () => {
 
 // ─── SUBMIT ACTION: ADMIN PORTAL LOGIN ───
 const handleAdminLoginSubmit = async () => {
-  if (!adminUsername.trim() || !adminPassword.trim()) return;
+  if (!adminUsername.trim() || !adminPassword.trim() || isSubmitting) return;
   
   setIsSubmitting(true);
   setAdminError("");
@@ -294,16 +319,20 @@ const handleAdminLoginSubmit = async () => {
     if (result.success) {
       setAdminError("");
       setIsAdminOpen(false);
+      setIsSubmitting(false); 
+      
+      setAdminUsername("");
+      setAdminPassword("");
 
       setTimeout(() => {
         router.push("/admin");
       }, 50);
-
     } else {
       setAdminError(result.error || "Invalid username or password credentials.");
       setIsSubmitting(false); 
     }
   } catch (error) {
+    console.error("Client login action failed:", error);
     setAdminError("A system connection error occurred. Please try again.");
     setIsSubmitting(false);
   }
@@ -318,7 +347,12 @@ const handleAdminLoginSubmit = async () => {
           <div className="bg-accent text-accent-foreground p-2.5 rounded-xl flex items-center justify-center shadow-lg shadow-accent/10">
             <Dumbbell className="h-4 w-4 stroke-[2.5]" />
           </div>
-          <span className="font-montserrat font-black text-xl tracking-wider uppercase">Limitless Fitness <span className="text-accent">Gym</span></span>
+          {/* Dynamically render the gym name */}
+          <span className="font-montserrat font-black text-xl tracking-wider uppercase">
+            {dynamicGymName || (
+              <>Limitless Fitness <span className="text-accent">Gym</span></>
+            )}
+          </span>
         </div>
         <div className="text-right">
           <div className="font-montserrat font-black text-2xl tracking-tight">{formattedTime}</div>
@@ -337,7 +371,8 @@ const handleAdminLoginSubmit = async () => {
             <div className="bg-black/10 p-3 rounded-xl w-fit"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div>
               <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1">Log Daily Session</h3>
-              <p className="font-semibold text-sm opacity-80">Walk-in • PHP 80</p>
+              {/* Dynamically render the daily fee */}
+              <p className="font-semibold text-sm opacity-80">Walk-in • ₱ {dynamicDailyFee}</p>
             </div>
           </button>
 
@@ -345,7 +380,8 @@ const handleAdminLoginSubmit = async () => {
             <div className="bg-muted p-3 rounded-xl w-fit text-muted-foreground group-hover:text-accent transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div>
               <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1 group-hover:text-accent transition-colors">Monthly Member</h3>
-              <p className="text-muted-foreground font-semibold text-sm">Subscription • PHP 800/mo</p>
+              {/* Dynamically render the monthly fee */}
+              <p className="text-muted-foreground font-semibold text-sm">Subscription • ₱ {dynamicMonthlyFee}/mo</p>
             </div>
           </button>
         </div>
@@ -353,7 +389,7 @@ const handleAdminLoginSubmit = async () => {
 
       {/* FOOTER */}
       <footer className="flex items-center justify-between text-xs font-medium text-muted-foreground/60 border-t border-border/40 pt-6">
-        <div>© {currentTime.getFullYear()} Limitless Fitness Gym. All rights reserved.</div>
+        <div>©Ernest Victor Agalo. All rights reserved.</div>
         <button 
           onClick={() => setIsAdminOpen(true)} 
           className="hover:text-accent transition-colors flex items-center gap-1.5 cursor-pointer"
@@ -381,6 +417,13 @@ const handleAdminLoginSubmit = async () => {
                     <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Your Name</label>
                     <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Jana Villanueva" autoFocus className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
                   </div>
+
+                  {/* DYNAMIC WALK-IN PRICE DISPLAY */}
+                  <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
+                    <span className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Walk-In Rate</span>
+                    <span className="text-accent text-lg font-black font-montserrat">₱ {dynamicDailyFee}</span>
+                  </div>
+
                   <button onClick={handleDailySubmit} disabled={!fullName.trim()} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer">LOG SESSION</button>
                 </div>
               ) : (
@@ -395,7 +438,7 @@ const handleAdminLoginSubmit = async () => {
         </div>
       )}
 
-      {/* ─── MODAL 2: MONTHLY MEMBER (LOCKS ON SUCCESS FOR CAMERA PICTURES) ─── */}
+      {/* ─── MODAL 2: MONTHLY MEMBER ─── */}
       {isMonthlyOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
@@ -411,7 +454,6 @@ const handleAdminLoginSubmit = async () => {
                       <p className="text-muted-foreground text-[10px] uppercase tracking-[0.2em] font-bold mb-1 font-montserrat">MONTHLY MEMBERSHIP</p>
                       <h2 className="text-neutral-100 text-2xl font-black tracking-tight font-montserrat uppercase">Access Portal</h2>
                     </div>
-                    {/* Header close cross triggers full cleanup function */}
                     <button onClick={closeMonthlyPortal} className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                   </div>
 
@@ -431,7 +473,6 @@ const handleAdminLoginSubmit = async () => {
                         <input type="text" value={loginMemberId} onChange={(e) => { setLoginMemberId(e.target.value.toUpperCase()); setLoginError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
                       </div>
 
-                      {/* Phone & PIN Grid */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Registered Mobile</label>
@@ -457,13 +498,11 @@ const handleAdminLoginSubmit = async () => {
                   {monthlyTab === "register" && (
                     <div className="flex flex-col gap-4">
                       
-                      {/* Name Row */}
                       <div className="flex flex-col gap-1.5">
                         <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Full Name</label>
                         <input type="text" value={registerName} onChange={(e) => { setRegisterName(e.target.value); setRegisterError(""); }} placeholder="e.g. Juan Dela Cruz" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
                       </div>
 
-                      {/* Phone & Emergency Grid */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Mobile No.</label>
@@ -475,7 +514,7 @@ const handleAdminLoginSubmit = async () => {
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat text-accent">Emergency No.</label>
+                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Emergency No.</label>
                           <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
                             <span className="px-2.5 text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3 font-montserrat">+63</span>
                             <input type="text" value={registerEmergencyPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRegisterEmergencyPhone, setRegisterEmergencyError)} placeholder="917 123 4567" className="w-full px-3 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
@@ -484,7 +523,6 @@ const handleAdminLoginSubmit = async () => {
                         </div>
                       </div>
 
-                      {/* DOB & PIN Grid */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Date of Birth</label>
@@ -497,6 +535,12 @@ const handleAdminLoginSubmit = async () => {
                           <input type="password" maxLength={4} value={registerPin} onChange={(e) => { setRegisterPin(e.target.value.replace(/\D/g, "")); setRegisterPinError(""); }} placeholder="••••" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors text-center tracking-[0.5em]" />
                           {registerPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerPinError}</p>}
                         </div>
+                      </div>
+
+                      {/* DYNAMIC REGISTRATION PRICE DISPLAY */}
+                      <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 mt-1">
+                        <span className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Registration Fee</span>
+                        <span className="text-accent text-lg font-black font-montserrat">₱ {dynamicMonthlyFee}</span>
                       </div>
 
                       <button onClick={handleMonthlyRegisterSubmit} disabled={!registerName.trim() || registerPhone.length < 10 || registerEmergencyPhone.length < 10 || registerPin.length !== 4 || !registerDob} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-1">CREATE MEMBERSHIP</button>
@@ -518,21 +562,25 @@ const handleAdminLoginSubmit = async () => {
                         </div>
                         {renewError && <p className="text-red-500 text-[11px] font-semibold mt-0.5 tracking-wide">{renewError}</p>}
                       </div>
+
+                      {/* DYNAMIC RENEWAL PRICE DISPLAY */}
+                      <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 mt-1">
+                        <span className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">30-Day Renewal Fee</span>
+                        <span className="text-accent text-lg font-black font-montserrat">₱ {dynamicMonthlyFee}</span>
+                      </div>
+
                       <button onClick={handleMonthlyRenewSubmit} disabled={!renewMemberId.trim() || renewPhone.length < 10} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">PROCESS 30-DAY RENEWAL</button>
                     </div>
                   )}
 
                 </div>
               ) : (
-                
-                // ─── STABLE SUCCESS LAYOUT CONTAINER ───
+                // SUCCESS SCREEN (UNTOUCHED)
                 <div className="flex flex-col items-center py-2 text-center">
-        
                   <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-5 border border-accent/20">
                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-accent"><path d="M20 6 9 17l-5-5"/></svg>
                   </div>
                   
-                  {/* CONDITION A: LOGGED IN OK */}
                   {successMode === "logged_in" && (
                     <>
                       <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">ACCESS GRANTED</h3>
@@ -540,7 +588,6 @@ const handleAdminLoginSubmit = async () => {
                     </>
                   )}
 
-                  {/* CONDITION B: BRAND NEW REGISTERED ACCOUNT (Takes Center Stage) */}
                   {successMode === "register" || successMode === "registered" ? (
                     <>
                       <div className="bg-neutral-900 border border-neutral-800 px-6 py-4 rounded-xl w-full mb-4">
@@ -557,7 +604,6 @@ const handleAdminLoginSubmit = async () => {
                     </>
                   ) : null}
 
-                  {/* CONDITION C: ACCOUNT EXTENDED/RENEWED */}
                   {successMode === "renewed" && (
                     <>
                       <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">RENEWAL SUCCESSFUL</h3>
@@ -571,18 +617,16 @@ const handleAdminLoginSubmit = async () => {
                   >
                     GOT IT, CLOSE WINDOW
                   </button>
-
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}
 
       {/* ─── MODAL 3: SECURE ADMIN SIGN IN ─── */}
       {isAdminOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 bg-[radial-gradient(#222_1px,transparent_1px)] [background-size:16px_16px]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 bg-[radial-gradient(#222_1px,transparent_1px)] bg-size-[16px_16px]">
           <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl p-8">
             
             {/* Close Button */}
@@ -598,7 +642,10 @@ const handleAdminLoginSubmit = async () => {
               <div className="bg-accent text-accent-foreground p-2 rounded-xl mb-3">
                 <Dumbbell className="h-4 w-4 stroke-[2.5]" />
               </div>
-              <h2 className="font-montserrat font-black text-lg tracking-wider uppercase text-neutral-100">Limitless <span className="text-accent">Gym</span></h2>
+              {/* NOW USING DYNAMIC GYM NAME */}
+              <h2 className="font-montserrat font-black text-lg tracking-wider uppercase text-neutral-100">
+                {dynamicGymName}
+              </h2>
               <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mt-0.5">Admin Portal</p>
             </div>
 
@@ -654,10 +701,10 @@ const handleAdminLoginSubmit = async () => {
               {/* Submit Sign In */}
               <button 
                 onClick={handleAdminLoginSubmit}
-                disabled={isSubmitting || !adminUsername.trim() || !adminPassword.trim()}
+                disabled={!adminUsername.trim() || !adminPassword.trim()}
                 className="w-full py-4 mt-2 rounded-xl font-black text-xs tracking-[0.15em] bg-accent/20 hover:bg-accent text-accent hover:text-accent-foreground border border-accent/30 hover:border-transparent font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer"
               >
-                {isSubmitting ? "AUTHENTICATING..." : "SIGN IN"}
+                SIGN IN
               </button>
 
             </div>

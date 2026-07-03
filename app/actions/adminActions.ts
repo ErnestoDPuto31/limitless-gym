@@ -21,7 +21,6 @@ export async function getDashboardStats() {
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const weekAgoIso = oneWeekAgo.toISOString();
 
-    console.log("Fetching payments...");
     const { data: todayPayments, error: payErr1 } = await supabase
       .from("payments")
       .select("amount")
@@ -46,8 +45,6 @@ export async function getDashboardStats() {
     } else if (todayRevenue > 0) {
       revenueChangePercent = 100;
     }
-
-    console.log("Fetching attendance logs...");
     const { data: todayLogs, error: logErr } = await supabase
       .from("attendance_logs")
       .select("log_type")
@@ -59,7 +56,6 @@ export async function getDashboardStats() {
     const monthlyLogins = todayLogs?.filter(l => l.log_type === "monthly").length || 0;
     const dailyLogins = todayLogs?.filter(l => l.log_type === "daily").length || 0;
 
-    console.log("Fetching member statistics...");
     const { count: activeMembersCount, error: memErr1 } = await supabase
       .from("members")
       .select("*", { count: "exact", head: true })
@@ -119,7 +115,6 @@ export async function getDashboardStats() {
       activity: formattedActivity,
     };
   } catch (error) {
-    console.error("CRITICAL DASHBOARD CRASH:", error);
     return { success: false, error: "Database execution failure." };
   }
 }

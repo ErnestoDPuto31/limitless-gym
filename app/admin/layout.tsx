@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { getGymSettings } from "@/app/actions/settingsActions";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -71,6 +72,17 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+    const [gymName, setGymName] = useState<string>("");
+
+  useEffect(() => {
+    async function loadLayoutSettings() {
+      const result = await getGymSettings();
+      if (result.success && result.data?.gym_name) {
+        setGymName(result.data.gym_name);
+      }
+    }
+    loadLayoutSettings();
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -100,7 +112,9 @@ export default function AdminLayout({
             </div>
             <div>
               <h1 className="font-black text-sm tracking-wider uppercase text-white">
-                Limitless Fitness <span className="text-[#DFFF00]">Gym</span>
+                {gymName || (
+                  <>Limitless Fitness <span className="text-[#DFFF00]">Gym</span></>
+                )}
               </h1>
               <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-500">
                 Admin Portal

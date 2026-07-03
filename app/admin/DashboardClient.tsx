@@ -4,11 +4,9 @@ import React, { useState } from "react";
 import { TrendingUp, Users, UserCheck, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function DashboardClient({ stats, activity }: { stats: unknown; activity: unknown[] }) {
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Pagination Logic
   const totalPages = Math.ceil(activity.length / itemsPerPage);
   const paginatedActivity = activity.slice(
     (currentPage - 1) * itemsPerPage,
@@ -16,10 +14,13 @@ export default function DashboardClient({ stats, activity }: { stats: unknown; a
   );
 
   return (
-    <div className="space-y-6">
+      <div className="space-y-6">
       {/* HEADER ROW */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-black text-white uppercase tracking-wide">Dashboard</h1>
+      <div>
+        <h1 className="text-2xl font-black text-white uppercase tracking-wide">DASHBOARD</h1>
+        <p className="text-[12px] text-neutral-500 font-semibold tracking-wide">
+          Real-time monitoring of gym check-ins, member metrics, and daily registration numbers
+        </p>
       </div>
 
       {/* CARD ROWS */}
@@ -40,7 +41,7 @@ export default function DashboardClient({ stats, activity }: { stats: unknown; a
               <TrendingUp className="h-4 w-4" />
             </div>
           </div>
-          <h3 className="text-2xl font-black text-white tracking-tight">PHP {(stats as { todayRevenue: number }).todayRevenue.toLocaleString()}</h3>
+          <h3 className="text-2xl font-black text-white tracking-tight">₱ {(stats as { todayRevenue: number }).todayRevenue.toLocaleString()}</h3>
           <p className="text-xs font-bold text-emerald-400 mt-1">↑ {(stats as { revenueChangePercent: number }).revenueChangePercent}% vs yesterday</p>
         </div>
 

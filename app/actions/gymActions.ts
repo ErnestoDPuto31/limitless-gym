@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
+import { unstable_noStore as noStore } from "next/cache";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -38,6 +39,22 @@ async function getGymFees(): Promise<{ daily: number; monthly: number }> {
   }
 }
 
+export async function getGymSettings() {
+  noStore();
+
+  try {
+    const { data, error } = await supabase
+      .from("gym_settings")
+      .select("*")
+      .limit(1)
+      .single();
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: "Failed to fetch settings" };
+  }
+}
 
 // ─── ACTION 1: LOG DAILY WALK-IN 
 export async function logDailySession(fullName: string) {
@@ -214,23 +231,35 @@ export async function renewMember(memberId: string, phone: string) {
   }
 }
 
-// ─── ACTION 5: SECURE ADMIN SIGN-IN ───
+// ─── ACTION 5: DYNAMIC SECURE ADMIN SIGN-IN ───
 export async function loginAdmin(username: string, password: string) {
   try {
-    const backupUsername = process.env.ADMIN_USERNAME;
-    const backupPassword = process.env.ADMIN_PASSWORD;
+    const { data: settings, error: settingsError } = await supabase
+      .from("gym_settings")
+      .select("admin_password")
+      .limit(1)
+      .single();
 
-    if (!backupUsername || !backupPassword) {
-      console.error("Missing ADMIN_USERNAME or ADMIN_PASSWORD inside .env.local");
-      return { success: false, error: "Server authentication configuration missing." };
+    const targetPassword = (settingsError || !settings?.admin_password) 
+      ? process.env.ADMIN_PASSWORD 
+      : settings.admin_password;
+
+    if (!targetPassword) {
+      console.error("Missing fallback ADMIN_PASSWORD in .env.local and no database record found.");
+      return { success: false, error: "System authentication configuration missing." };
     }
 
-    if (username.toLowerCase() === backupUsername.toLowerCase() && password === backupPassword) {
+    const cleanInputUser = username.trim().toLowerCase();
+    const cleanInputPass = password.trim();
+
+
+    if (cleanInputUser === "admin" && cleanInputPass === targetPassword) {
       return { success: true };
     }
     
     return { success: false, error: "Invalid username or password credentials." };
-  } catch {
+  } catch (err: unknown) {
+    console.error("Admin Login Error Exception:", err);
     return { success: false, error: "Server authentication error." };
   }
 }

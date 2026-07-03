@@ -1,29 +1,20 @@
 import { getReportData } from "@/app/actions/reportActions";
 import ReportDashboardClient from "./ReportDashboardClient";
+import "@/app/styles/fonts.css"; 
 
 export const revalidate = 0; 
 
 export default async function ReportsAdminPage() {
   const data = await getReportData();
 
-  // Format system display timestamp string matching your design spec format
-  const systemDateString = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric"
-  });
-
   return (
-    <div className="space-y-6 font-inter">
-      {/* RENDER TOP CAPPTION LAYOUT BAR */}
+    <div className="space-y-6">
+      {/* RENDER TOP CAPTION LAYOUT BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-foreground font-montserrat tracking-tight uppercase">
-            Reports & Analytics
-          </h2>
-          <p className="text-xs text-muted-foreground font-medium mt-1">
-            System Data Frame: <span className="text-foreground/80 font-bold">{systemDateString}</span>
+          <h1 className="text-2.5xl font-black text-white uppercase tracking-wide">REPORTS</h1>
+          <p className="text-[12px] text-neutral-500 font-semibold tracking-wide">
+            Track total revenue breakdowns, monitor walk-in counts, and audit system financial logs
           </p>
         </div>
       </div>

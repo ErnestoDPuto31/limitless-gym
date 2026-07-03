@@ -90,7 +90,6 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
       setSortOrder("desc"); 
     }
   };
-
   // ─── PAGINATION LOGIC ───
   const totalPages = Math.ceil(processedPayments.length / itemsPerPage);
   const paginatedPayments = useMemo(() => {
@@ -100,7 +99,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
 
   // ─── CSV EXPORT WITH TOTALS ───
   const exportToCSV = () => {
-    const headers = ["Transaction ID", "Member ID Mapping", "Payer Name", "Transaction Type", "Amount (PHP)", "Timestamp"];
+    const headers = ["Transaction ID", "Member ID Mapping", "Payer Name", "Transaction Type", "Amount (₱)", "Timestamp"];
     const rows = processedPayments.map((p) => [
       p.id,
       p.members?.member_id || "N/A",
@@ -113,7 +112,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
     const summaryRows = [
       ["", "", "", "", "", ""],
       ["--- SUMMARY DATA ---", "", "", "", "", ""],
-      ["Total Period Revenue:", "", "", "", `PHP ${totalRevenue}`, ""],
+      ["Total Period Revenue:", "", "", "", `₱ ${totalRevenue}`, ""],
       ["Total Period Logins:", "", "", "", `${totalLogins} logins`, ""]
     ];
 
@@ -203,7 +202,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
             <h4 className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">Real-Time Daily Revenue</h4>
             <div className="text-right">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Volume</span>
-              <span className="text-lg font-black text-accent font-mono leading-none">₱{totalRevenue.toLocaleString()}</span>
+              <span className="text-lg font-black text-accent font-mono leading-none">₱ {totalRevenue.toLocaleString()}</span>
             </div>
           </div>
           <div className="flex-1 flex items-end justify-between gap-2 pt-4 px-2 min-h-40">
@@ -306,7 +305,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
                         {formatTxType(tx.tx_type)}
                       </span>
                     </td>
-                    <td className="py-4 px-6 font-mono text-accent text-sm">PHP {tx.amount}</td>
+                    <td className="py-4 px-6 font-mono text-accent text-sm">₱ {tx.amount}</td>
                     <td className="py-4 px-6 font-mono text-[11px] text-foreground/80 tracking-tight">
                       {new Date(tx.created_at).toLocaleString("en-US", {
                         month: "short", day: "numeric", year: "numeric",
@@ -377,7 +376,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
                 <p className="text-xs text-muted-foreground mt-3 px-2">
                   {modalMode === "hard_all" 
                     ? "Executing severe structural data clearance for ALL records. This obliterates database tables and CANNOT be reversed." 
-                    : `Executing clearance for amount PHP ${selectedTx?.amount}. This cannot be reversed.`}
+                    : `Executing clearance for amount ₱ ${selectedTx?.amount}. This cannot be reversed.`}
                 </p>
               </div>
 

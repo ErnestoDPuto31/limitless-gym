@@ -30,11 +30,9 @@ export default async function MembersPage({ searchParams }: PageProps) {
       {/* HEADER CONTROLS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-white tracking-wide uppercase">
-            Gym Members Manager
-          </h2>
-          <p className="text-[11px] text-neutral-500 font-semibold tracking-wide">
-            Total Database Records: <span className="text-[#DFFF00] font-mono">{totalCount}</span>
+          <h1 className="text-2.5xl font-black text-white uppercase tracking-wide">MEMBERS</h1>
+          <p className="text-[12px] text-neutral-500 font-semibold tracking-wide">
+            Manage your gym&apos;s members and view detailed information about each individual
           </p>
         </div>
       </div>
