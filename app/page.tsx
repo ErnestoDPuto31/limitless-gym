@@ -1,12 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { logDailySession, registerMember, loginMember, renewMember } from "@/app/actions/gymActions";
+import { logDailySession, registerMember, loginMember, renewMember, loginAdmin } from "@/app/actions/gymActions";
+import { useRouter } from "next/navigation";
 
 
 export default function CheckInPage () {
+
+  
+    // ─── ADMIN LOGIN SYSTEM STATES ───
+  const router = useRouter(); // Initialize router instance
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [adminUsername, setAdminUsername] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [adminError, setAdminError] = useState("");
+
   // ─── CLOCK STATE ───
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [mounted, setMounted] = useState(false);
 
   // ─── DAILY SESSION STATE ───
   const [isDailyOpen, setIsDailyOpen] = useState(false);
@@ -258,6 +270,34 @@ const handleMonthlyRegisterSubmit = async () => {
   }
 };
 
+// ─── SUBMIT ACTION: ADMIN PORTAL LOGIN ───
+const handleAdminLoginSubmit = async () => {
+  if (!adminUsername.trim() || !adminPassword.trim()) return;
+  
+  setIsSubmitting(true);
+  setAdminError("");
+
+  try {
+    const result = await loginAdmin(adminUsername, adminPassword);
+
+    if (result.success) {
+      setAdminError("");
+      setIsAdminOpen(false);
+
+      setTimeout(() => {
+        router.push("/admin");
+      }, 50);
+
+    } else {
+      setAdminError(result.error || "Invalid username or password credentials.");
+      setIsSubmitting(false); 
+    }
+  } catch (error) {
+    setAdminError("A system connection error occurred. Please try again.");
+    setIsSubmitting(false);
+  }
+};
+
   return (
     <div className="min-h-screen bg-background text-foreground font-inter flex flex-col justify-between p-6 md:p-10 select-none relative">
       
@@ -303,7 +343,10 @@ const handleMonthlyRegisterSubmit = async () => {
       {/* FOOTER */}
       <footer className="flex items-center justify-between text-xs font-medium text-muted-foreground/60 border-t border-border/40 pt-6">
         <div>© {currentTime.getFullYear()} Limitless Fitness Gym. All rights reserved.</div>
-        <button className="hover:text-accent transition-colors flex items-center gap-1.5 cursor-pointer">
+        <button 
+          onClick={() => setIsAdminOpen(true)} 
+          className="hover:text-accent transition-colors flex items-center gap-1.5 cursor-pointer"
+        >
           Admin Access <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </footer>
@@ -526,6 +569,93 @@ const handleMonthlyRegisterSubmit = async () => {
         </div>
       )}
 
+      {/* ─── MODAL 3: SECURE ADMIN SIGN IN ─── */}
+      {isAdminOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 bg-[radial-gradient(#222_1px,transparent_1px)] [background-size:16px_16px]">
+          <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl p-8">
+            
+            {/* Close Button */}
+            <button 
+              onClick={() => { setIsAdminOpen(false); setAdminError(""); setAdminUsername(""); setAdminPassword(""); }} 
+              className="absolute top-6 right-6 w-8 h-8 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+
+            {/* Header branding block */}
+            <div className="flex flex-col items-center text-center mb-8">
+              <div className="bg-accent text-accent-foreground p-2 rounded-xl mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18.5 5.5 3 3"/><path d="m2.5 15.5 3 3"/><path d="m15.5 2.5 3 3"/><path d="m5.5 18.5 3 3"/><path d="M10 14 1 5"/><path d="m23 19-9-9"/></svg>
+              </div>
+              <h2 className="font-montserrat font-black text-lg tracking-wider uppercase text-neutral-100">Limitless <span className="text-accent">Gym</span></h2>
+              <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mt-0.5">Admin Portal</p>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              <div>
+                <h3 className="text-neutral-100 text-xl font-black tracking-tight font-montserrat">Secure Sign In</h3>
+                <p className="text-neutral-500 text-xs mt-0.5 font-medium">Authorized personnel only.</p>
+              </div>
+
+              {adminError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold rounded-xl">
+                  {adminError}
+                </div>
+              )}
+
+              {/* Username Input */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Username</label>
+                <input 
+                  type="text" 
+                  value={adminUsername} 
+                  onChange={(e) => setAdminUsername(e.target.value)} 
+                  placeholder="admin" 
+                  className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" 
+                />
+              </div>
+
+              {/* Password Input */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Password</label>
+                <div className="relative flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                  <input 
+                    type={showAdminPassword ? "text" : "password"} 
+                    value={adminPassword} 
+                    onChange={(e) => setAdminPassword(e.target.value)} 
+                    placeholder="••••••••••••" 
+                    className="w-full pl-4 pr-12 py-3.5 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" 
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowAdminPassword(!showAdminPassword)}
+                    className="absolute right-4 text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
+                  >
+                    {showAdminPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Sign In */}
+              <button 
+                onClick={handleAdminLoginSubmit}
+                disabled={isSubmitting || !adminUsername.trim() || !adminPassword.trim()}
+                className="w-full py-4 mt-2 rounded-xl font-black text-xs tracking-[0.15em] bg-accent/20 hover:bg-accent text-accent hover:text-accent-foreground border border-accent/30 hover:border-transparent font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer"
+              >
+                {isSubmitting ? "AUTHENTICATING..." : "SIGN IN"}
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
+    
   );
 }

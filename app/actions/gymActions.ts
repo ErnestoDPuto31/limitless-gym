@@ -213,3 +213,24 @@ export async function renewMember(memberId: string, phone: string) {
     return { success: false, error: getErrorMessage(err) };
   }
 }
+
+// ─── ACTION 5: SECURE ADMIN SIGN-IN ───
+export async function loginAdmin(username: string, password: string) {
+  try {
+    const backupUsername = process.env.ADMIN_USERNAME;
+    const backupPassword = process.env.ADMIN_PASSWORD;
+
+    if (!backupUsername || !backupPassword) {
+      console.error("Missing ADMIN_USERNAME or ADMIN_PASSWORD inside .env.local");
+      return { success: false, error: "Server authentication configuration missing." };
+    }
+
+    if (username.toLowerCase() === backupUsername.toLowerCase() && password === backupPassword) {
+      return { success: true };
+    }
+    
+    return { success: false, error: "Invalid username or password credentials." };
+  } catch {
+    return { success: false, error: "Server authentication error." };
+  }
+}
