@@ -6,7 +6,7 @@ import { logDailySession, registerMember, loginMember, renewMember, loginAdmin }
 import { useRouter } from "next/navigation";
 
 const Dumbbell = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+  <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="m6.5 6.5 11 11" />
     <path d="m21 21-1-1" />
     <path d="m3 3 1 1" />
@@ -344,13 +344,13 @@ const handleAdminLoginSubmit = async () => {
       {/* HEADER */}
       <header className="flex items-center justify-between border-b border-border pb-6">
         <div className="flex items-center gap-3">
-          <div className="bg-accent text-accent-foreground p-2.5 rounded-xl flex items-center justify-center shadow-lg shadow-accent/10">
+          <div className="bg-(--theme-color) text-(#36454F) p-2.5 rounded-xl flex items-center justify-center shadow-lg shadow-(--theme-color)/10">
             <Dumbbell className="h-4 w-4 stroke-[2.5]" />
           </div>
           {/* Dynamically render the gym name */}
           <span className="font-montserrat font-black text-xl tracking-wider uppercase">
             {dynamicGymName || (
-              <>Limitless Fitness <span className="text-accent">Gym</span></>
+              <>Limitless Fitness <span className="text-(--theme-color)">Gym</span></>
             )}
           </span>
         </div>
@@ -363,24 +363,22 @@ const handleAdminLoginSubmit = async () => {
       {/* PORTAL MAIN COMPONENT GRAPHICS */}
       <main className="flex-1 flex flex-col items-center justify-center my-auto max-w-4xl w-full mx-auto text-center">
         <span className="text-muted-foreground font-montserrat font-bold tracking-[0.25em] text-xs uppercase mb-4">Member Check-In</span>
-        <h1 className="font-montserrat font-black text-5xl md:text-7xl tracking-tight leading-none uppercase mb-4">Ready to <br /><span className="text-accent">Crush it?</span></h1>
+        <h1 className="font-montserrat font-black text-5xl md:text-7xl tracking-tight leading-none uppercase mb-4">Ready to <br /><span className="text-(--theme-color)">Crush it?</span></h1>
         <p className="text-muted-foreground text-base md:text-lg max-w-md mx-auto font-medium mb-12">Select your session type to get started.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
-          <button onClick={() => setIsDailyOpen(true)} className="bg-accent text-accent-foreground p-8 rounded-2xl text-left flex flex-col justify-between h-56 transition-all duration-200 active:scale-[0.98] cursor-pointer group hover:brightness-110 shadow-xl shadow-accent/5">
+          <button onClick={() => setIsDailyOpen(true)} className="bg-(--theme-color) text-(#FFFFFF) p-8 rounded-2xl text-left flex flex-col justify-between h-56 transition-all duration-200 active:scale-[0.98] cursor-pointer group hover:brightness-110 shadow-xl shadow-(--theme-color)/5">
             <div className="bg-black/10 p-3 rounded-xl w-fit"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div>
               <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1">Log Daily Session</h3>
-              {/* Dynamically render the daily fee */}
               <p className="font-semibold text-sm opacity-80">Walk-in • ₱ {dynamicDailyFee}</p>
             </div>
           </button>
 
           <button onClick={() => setIsMonthlyOpen(true)} className="bg-card border border-border text-foreground p-8 rounded-2xl text-left flex flex-col justify-between h-56 transition-all duration-200 active:scale-[0.98] cursor-pointer hover:bg-muted/30 group">
-            <div className="bg-muted p-3 rounded-xl w-fit text-muted-foreground group-hover:text-accent transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div className="bg-muted p-3 rounded-xl w-fit text-muted-foreground group-hover:text-(--theme-color) transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div>
-              <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1 group-hover:text-accent transition-colors">Monthly Member</h3>
-              {/* Dynamically render the monthly fee */}
+              <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1 group-hover:text-(--theme-color) transition-colors">Monthly Member</h3>
               <p className="text-muted-foreground font-semibold text-sm">Subscription • ₱ {dynamicMonthlyFee}/mo</p>
             </div>
           </button>
@@ -392,7 +390,7 @@ const handleAdminLoginSubmit = async () => {
         <div>©Ernest Victor Agalo. All rights reserved.</div>
         <button 
           onClick={() => setIsAdminOpen(true)} 
-          className="hover:text-accent transition-colors flex items-center gap-1.5 cursor-pointer"
+          className="hover:text-(--theme-color) transition-colors flex items-center gap-1.5 cursor-pointer"
         >
           Admin Access <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
@@ -402,7 +400,7 @@ const handleAdminLoginSubmit = async () => {
       {isDailyOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
-            <div className="h-0.75 w-full bg-accent" />
+            <div className="h-0.75 w-full bg-(--theme-color)" />
             <div className="p-8">
               {!isDailySuccess ? (
                 <div className="flex flex-col gap-6">
@@ -415,20 +413,20 @@ const handleAdminLoginSubmit = async () => {
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Your Name</label>
-                    <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Jana Villanueva" autoFocus className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
+                    <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Jana Villanueva" autoFocus className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" />
                   </div>
 
                   {/* DYNAMIC WALK-IN PRICE DISPLAY */}
                   <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
                     <span className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Walk-In Rate</span>
-                    <span className="text-accent text-lg font-black font-montserrat">₱ {dynamicDailyFee}</span>
+                    <span className="text-(#FFFFFF) text-lg font-black font-montserrat">₱ {dynamicDailyFee}</span>
                   </div>
 
-                  <button onClick={handleDailySubmit} disabled={!fullName.trim()} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer">LOG SESSION</button>
+                  <button onClick={handleDailySubmit} disabled={!fullName.trim()} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(#212121) font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer">LOG SESSION</button>
                 </div>
               ) : (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-5 border border-accent/20"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-accent"><path d="M20 6 9 17l-5-5"/></svg></div>
+                  <div className="w-16 h-16 rounded-full bg-(--theme-color)/10 flex items-center justify-center mb-5 border border-(--theme-color)/20"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-(--theme-color)"><path d="M20 6 9 17l-5-5"/></svg></div>
                   <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">{fullName}</h3>
                   <p className="text-muted-foreground text-sm font-medium">Session logged. Have a great workout!</p>
                 </div>
@@ -442,7 +440,7 @@ const handleAdminLoginSubmit = async () => {
       {isMonthlyOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
-            <div className="h-0.75 w-full bg-accent" />
+            <div className="h-0.75 w-full bg-(--theme-color)" />
             
             <div className="p-8">
               {!isMonthlySuccess ? (
@@ -459,9 +457,9 @@ const handleAdminLoginSubmit = async () => {
 
                   {/* 3-COLUMN TABS SYSTEM */}
                   <div className="grid grid-cols-3 bg-[#2A2A2C] p-1 rounded-xl border border-neutral-800">
-                    <button onClick={() => setMonthlyTab("login")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "login" ? "bg-accent text-accent-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>LOG IN</button>
-                    <button onClick={() => setMonthlyTab("register")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "register" ? "bg-accent text-accent-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>REGISTER</button>
-                    <button onClick={() => setMonthlyTab("renew")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "renew" ? "bg-accent text-accent-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>RENEW</button>
+                    <button onClick={() => setMonthlyTab("login")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "login" ? "bg-(--theme-color) text-(--theme-color)-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>LOG IN</button>
+                    <button onClick={() => setMonthlyTab("register")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "register" ? "bg-(--theme-color) text-(--theme-color)-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>REGISTER</button>
+                    <button onClick={() => setMonthlyTab("renew")} className={`py-2.5 text-[11px] font-black tracking-wider rounded-lg transition-all cursor-pointer font-montserrat ${monthlyTab === "renew" ? "bg-(--theme-color) text-(--theme-color)-foreground shadow" : "text-neutral-400 hover:text-neutral-200"}`}>RENEW</button>
                   </div>
 
                   {/* TAB 1: MEMBER LOG IN */}
@@ -470,13 +468,13 @@ const handleAdminLoginSubmit = async () => {
                       
                       <div className="flex flex-col gap-1.5">
                         <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Member ID</label>
-                        <input type="text" value={loginMemberId} onChange={(e) => { setLoginMemberId(e.target.value.toUpperCase()); setLoginError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
+                        <input type="text" value={loginMemberId} onChange={(e) => { setLoginMemberId(e.target.value.toUpperCase()); setLoginError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" />
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Registered Mobile</label>
-                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
                             <span className="px-3 text-sm font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3.5 font-montserrat">+63</span>
                             <input type="text" value={loginPhone} onChange={(e) => handlePhoneTyping(e.target.value, setLoginPhone, setLoginError)} placeholder="917 123 4567" className="w-full px-4 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
                           </div>
@@ -485,12 +483,12 @@ const handleAdminLoginSubmit = async () => {
 
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">4-Digit PIN</label>
-                          <input type="password" maxLength={4} value={loginPin} onChange={(e) => { setLoginPin(e.target.value.replace(/\D/g, "")); setLoginPinError(""); }} placeholder="••••" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors text-center tracking-[0.5em]" />
+                          <input type="password" maxLength={4} value={loginPin} onChange={(e) => { setLoginPin(e.target.value.replace(/\D/g, "")); setLoginPinError(""); }} placeholder="••••" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors text-center tracking-[0.5em]" />
                           {loginPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{loginPinError}</p>}
                         </div>
                       </div>
 
-                      <button onClick={handleMonthlyLoginSubmit} disabled={!loginMemberId.trim() || loginPhone.length < 10 || loginPin.length !== 4} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">CONFIRM CHECK-IN</button>
+                      <button onClick={handleMonthlyLoginSubmit} disabled={!loginMemberId.trim() || loginPhone.length < 10 || loginPin.length !== 4} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">CONFIRM CHECK-IN</button>
                     </div>
                   )}
 
@@ -500,13 +498,13 @@ const handleAdminLoginSubmit = async () => {
                       
                       <div className="flex flex-col gap-1.5">
                         <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Full Name</label>
-                        <input type="text" value={registerName} onChange={(e) => { setRegisterName(e.target.value); setRegisterError(""); }} placeholder="e.g. Juan Dela Cruz" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
+                        <input type="text" value={registerName} onChange={(e) => { setRegisterName(e.target.value); setRegisterError(""); }} placeholder="e.g. Juan Dela Cruz" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" />
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Mobile No.</label>
-                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
                             <span className="px-2.5 text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3 font-montserrat">+63</span>
                             <input type="text" value={registerPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRegisterPhone, setRegisterError)} placeholder="917 123 4567" className="w-full px-3 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
                           </div>
@@ -515,7 +513,7 @@ const handleAdminLoginSubmit = async () => {
 
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Emergency No.</label>
-                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
                             <span className="px-2.5 text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3 font-montserrat">+63</span>
                             <input type="text" value={registerEmergencyPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRegisterEmergencyPhone, setRegisterEmergencyError)} placeholder="917 123 4567" className="w-full px-3 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
                           </div>
@@ -526,13 +524,13 @@ const handleAdminLoginSubmit = async () => {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Date of Birth</label>
-                          <input type="date" value={registerDob} onChange={(e) => { setRegisterDob(e.target.value); setRegisterDobError(""); }} className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 text-sm font-medium outline-none focus:border-accent/40 transition-colors scheme-dark" />
+                          <input type="date" value={registerDob} onChange={(e) => { setRegisterDob(e.target.value); setRegisterDobError(""); }} className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors scheme-dark" />
                           {registerDobError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerDobError}</p>}
                         </div>
 
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">4-Digit PIN</label>
-                          <input type="password" maxLength={4} value={registerPin} onChange={(e) => { setRegisterPin(e.target.value.replace(/\D/g, "")); setRegisterPinError(""); }} placeholder="••••" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors text-center tracking-[0.5em]" />
+                          <input type="password" maxLength={4} value={registerPin} onChange={(e) => { setRegisterPin(e.target.value.replace(/\D/g, "")); setRegisterPinError(""); }} placeholder="••••" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors text-center tracking-[0.5em]" />
                           {registerPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerPinError}</p>}
                         </div>
                       </div>
@@ -540,10 +538,10 @@ const handleAdminLoginSubmit = async () => {
                       {/* DYNAMIC REGISTRATION PRICE DISPLAY */}
                       <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 mt-1">
                         <span className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Registration Fee</span>
-                        <span className="text-accent text-lg font-black font-montserrat">₱ {dynamicMonthlyFee}</span>
+                        <span className="text-(--theme-color) text-lg font-black font-montserrat">₱ {dynamicMonthlyFee}</span>
                       </div>
 
-                      <button onClick={handleMonthlyRegisterSubmit} disabled={!registerName.trim() || registerPhone.length < 10 || registerEmergencyPhone.length < 10 || registerPin.length !== 4 || !registerDob} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-1">CREATE MEMBERSHIP</button>
+                      <button onClick={handleMonthlyRegisterSubmit} disabled={!registerName.trim() || registerPhone.length < 10 || registerEmergencyPhone.length < 10 || registerPin.length !== 4 || !registerDob} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-1">CREATE MEMBERSHIP</button>
                     </div>
                   )}
 
@@ -552,11 +550,11 @@ const handleAdminLoginSubmit = async () => {
                     <div className="flex flex-col gap-4">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Your Member ID</label>
-                        <input type="text" value={renewMemberId} onChange={(e) => { setRenewMemberId(e.target.value.toUpperCase()); setRenewError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" />
+                        <input type="text" value={renewMemberId} onChange={(e) => { setRenewMemberId(e.target.value.toUpperCase()); setRenewError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" />
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Associated Mobile Number</label>
-                        <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                        <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
                           <span className="px-3 text-sm font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3.5 font-montserrat">+63</span>
                           <input type="text" value={renewPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRenewPhone, setRenewError)} placeholder="917 123 4567" className="w-full px-4 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
                         </div>
@@ -566,10 +564,10 @@ const handleAdminLoginSubmit = async () => {
                       {/* DYNAMIC RENEWAL PRICE DISPLAY */}
                       <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 mt-1">
                         <span className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">30-Day Renewal Fee</span>
-                        <span className="text-accent text-lg font-black font-montserrat">₱ {dynamicMonthlyFee}</span>
+                        <span className="text-(--theme-color) text-lg font-black font-montserrat">₱ {dynamicMonthlyFee}</span>
                       </div>
 
-                      <button onClick={handleMonthlyRenewSubmit} disabled={!renewMemberId.trim() || renewPhone.length < 10} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">PROCESS 30-DAY RENEWAL</button>
+                      <button onClick={handleMonthlyRenewSubmit} disabled={!renewMemberId.trim() || renewPhone.length < 10} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">PROCESS 30-DAY RENEWAL</button>
                     </div>
                   )}
 
@@ -577,14 +575,14 @@ const handleAdminLoginSubmit = async () => {
               ) : (
                 // SUCCESS SCREEN (UNTOUCHED)
                 <div className="flex flex-col items-center py-2 text-center">
-                  <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-5 border border-accent/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-accent"><path d="M20 6 9 17l-5-5"/></svg>
+                  <div className="w-16 h-16 rounded-full bg-(--theme-color)/10 flex items-center justify-center mb-5 border border-(--theme-color)/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-(--theme-color)"><path d="M20 6 9 17l-5-5"/></svg>
                   </div>
                   
                   {successMode === "logged_in" && (
                     <>
                       <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">ACCESS GRANTED</h3>
-                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">ID <span className="text-accent font-bold">{loginMemberId}</span> verified successfully.<br />Welcome back to Limitless Fitness Gym!</p>
+                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">ID <span className="text-(--theme-color) font-bold">{loginMemberId}</span> verified successfully.<br />Welcome back to Limitless Fitness Gym!</p>
                     </>
                   )}
 
@@ -592,11 +590,11 @@ const handleAdminLoginSubmit = async () => {
                     <>
                       <div className="bg-neutral-900 border border-neutral-800 px-6 py-4 rounded-xl w-full mb-4">
                         <p className="text-neutral-500 text-[9px] uppercase tracking-[0.2em] font-bold font-montserrat mb-1">YOUR EXCLUSIVE KEY</p>
-                        <h3 className="text-accent text-3xl font-black tracking-widest font-montserrat select-text">{generatedId}</h3>
+                        <h3 className="text-(--theme-color) text-3xl font-black tracking-widest font-montserrat select-text">{generatedId}</h3>
                       </div>
                       <p className="text-neutral-100 text-sm uppercase tracking-wider font-black font-montserrat mb-2">Registration Complete</p>
                       <p className="text-muted-foreground text-xs font-medium px-2 leading-relaxed mb-1">
-                        Please <span className="text-neutral-200 font-bold underline decoration-accent">TAKE A PICTURE</span> or write down this Member ID code to check-in for future gym sessions.
+                        Please <span className="text-neutral-200 font-bold underline decoration-(--theme-color)">TAKE A PICTURE</span> or write down this Member ID code to check-in for future gym sessions.
                       </p>
                       <p className="text-neutral-500 text-[10px] font-medium italic mt-2">
                         An SMS confirmation has been pushed to +63 {registerPhone}
@@ -607,13 +605,13 @@ const handleAdminLoginSubmit = async () => {
                   {successMode === "renewed" && (
                     <>
                       <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">RENEWAL SUCCESSFUL</h3>
-                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">Account <span className="text-accent font-bold">{renewMemberId}</span> extended for another 30 days.<br />Your status is active.</p>
+                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">Account <span className="text-(--theme-color) font-bold">{renewMemberId}</span> extended for another 30 days.<br />Your status is active.</p>
                     </>
                   )}
 
                   <button 
                     onClick={closeMonthlyPortal} 
-                    className="w-full mt-6 py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-accent text-accent-foreground font-montserrat hover:brightness-110 shadow-lg shadow-accent/10 transition-all active:scale-[0.99] cursor-pointer"
+                    className="w-full mt-6 py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat hover:brightness-110 shadow-lg shadow-(--theme-color)/10 transition-all active:scale-[0.99] cursor-pointer"
                   >
                     GOT IT, CLOSE WINDOW
                   </button>
@@ -639,7 +637,7 @@ const handleAdminLoginSubmit = async () => {
 
             {/* Header branding block */}
             <div className="flex flex-col items-center text-center mb-8">
-              <div className="bg-accent text-accent-foreground p-2 rounded-xl mb-3">
+              <div className="bg-(--theme-color) text-(--theme-color)-foreground p-2 rounded-xl mb-3">
                 <Dumbbell className="h-4 w-4 stroke-[2.5]" />
               </div>
               {/* NOW USING DYNAMIC GYM NAME */}
@@ -669,14 +667,14 @@ const handleAdminLoginSubmit = async () => {
                   value={adminUsername} 
                   onChange={(e) => setAdminUsername(e.target.value)} 
                   placeholder="admin" 
-                  className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-accent/40 transition-colors" 
+                  className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" 
                 />
               </div>
 
               {/* Password Input */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Password</label>
-                <div className="relative flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-accent/40 transition-colors">
+                <div className="relative flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
                   <input 
                     type={showAdminPassword ? "text" : "password"} 
                     value={adminPassword} 
@@ -702,7 +700,7 @@ const handleAdminLoginSubmit = async () => {
               <button 
                 onClick={handleAdminLoginSubmit}
                 disabled={!adminUsername.trim() || !adminPassword.trim()}
-                className="w-full py-4 mt-2 rounded-xl font-black text-xs tracking-[0.15em] bg-accent/20 hover:bg-accent text-accent hover:text-accent-foreground border border-accent/30 hover:border-transparent font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer"
+                className="w-full py-4 mt-2 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color)/20 hover:bg-(--theme-color) text-(--theme-color) hover:text-(--theme-color)-foreground border border-(--theme-color)/30 hover:border-transparent font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer"
               >
                 SIGN IN
               </button>

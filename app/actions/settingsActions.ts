@@ -13,6 +13,7 @@ interface GymSettingsPayload {
   daily_fee: number;
   monthly_fee: number;
   admin_password: string;
+  theme_color?: string;
 }
 
 export async function getGymSettings() {
@@ -25,7 +26,6 @@ export async function getGymSettings() {
 
     if (error) {
       if (error.code === "PGRST116") {
-        // Fallback seed data if table is completely empty
         const defaultData = {
           id: 1,
           gym_name: "Limitless Gym",
@@ -33,6 +33,7 @@ export async function getGymSettings() {
           daily_fee: 150,
           monthly_fee: 1500,
           admin_password: "limitless2025",
+          theme_color: "#DFFF00", // Added default color for new databases
         };
         
         const { data: insertedData, error: insertError } = await supabase
@@ -68,6 +69,7 @@ export async function updateGymSettings(payload: GymSettingsPayload) {
         daily_fee: payload.daily_fee,
         monthly_fee: payload.monthly_fee,
         admin_password: payload.admin_password,
+        theme_color: payload.theme_color,
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1)
@@ -75,7 +77,7 @@ export async function updateGymSettings(payload: GymSettingsPayload) {
       .single();
 
     if (error) throw error;
-
+    revalidatePath("/"); 
     revalidatePath("/admin");
     revalidatePath("/admin/settings");
 

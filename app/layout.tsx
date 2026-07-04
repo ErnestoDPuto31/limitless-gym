@@ -12,13 +12,22 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const result = await getGymSettings();
+  
+  const themeColor = result.success && result.data?.theme_color 
+    ? result.data.theme_color 
+    : "#DFFF00";
+
   return (
-    <html lang="en">
+    <html 
+      lang="en" 
+      style={{ "--theme-color": themeColor } as React.CSSProperties}
+    >
       <body className="antialiased">
         {children}
       </body>

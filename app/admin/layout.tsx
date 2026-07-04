@@ -107,13 +107,13 @@ export default function AdminLayout({
       <aside className="w-64 border-r border-neutral-800 bg-[#161616] flex flex-col justify-between">
         <div>
           <div className="p-6 flex items-center gap-3 border-b border-neutral-800">
-            <div className="h-8 w-8 bg-[#DFFF00] text-black rounded flex items-center justify-center shrink-0">
+            <div className="h-8 w-8 bg-(--theme-color) text-black rounded flex items-center justify-center shrink-0">
               <Dumbbell className="h-4 w-4 stroke-[2.5]" />
             </div>
             <div>
               <h1 className="font-black text-sm tracking-wider uppercase text-white">
                 {gymName || (
-                  <>Limitless Fitness <span className="text-[#DFFF00]">Gym</span></>
+                  <>Limitless Fitness <span className="text-(--theme-color)">Gym</span></>
                 )}
               </h1>
               <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-500">
@@ -134,12 +134,10 @@ export default function AdminLayout({
                   key={item.name}
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all group ${
-                    isActive
-                      ? "bg-neutral-800/60 text-[#DFFF00]"
-                      : "text-neutral-400 hover:text-white hover:bg-neutral-800/30"
+                    isActive ? "bg-neutral-800/60 text-(--theme-color)" : "text-neutral-400 hover:text-white hover:bg-neutral-800/30"
                   }`}
                 >
-                  <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[#DFFF00]" : "text-neutral-400 group-hover:text-white"}`} />
+                  <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-(--theme-color)" : "text-neutral-400 group-hover:text-white"}`} />
                   {item.name}
                 </Link>
               );

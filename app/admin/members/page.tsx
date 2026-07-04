@@ -58,11 +58,11 @@ export default async function MembersPage({ searchParams }: PageProps) {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-neutral-800 bg-neutral-900/30 text-[10px] uppercase font-black tracking-widest text-neutral-500">
-                <th className="py-3.5 px-6">ID Mapping</th>
+                <th className="py-3.5 px-6">Member ID</th>
                 <th className="py-3.5 px-6">Full Name</th>
                 <th className="py-3.5 px-6">Contact Info</th>
                 <th className="py-3.5 px-6">Expiration Date</th>
-                <th className="py-3.5 px-6">Status Indicator</th>
+                <th className="py-3.5 px-6">Status</th>
                 <th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
             </thead>

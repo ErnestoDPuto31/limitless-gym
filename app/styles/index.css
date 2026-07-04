@@ -20,6 +20,7 @@
   --secondary-foreground: #F5F5F5;
   --muted: #2A2A2A;
   --muted-foreground: #A0A0A0;
+  --theme-color: #DFFF00;
   --accent: #E8FF00;
   --accent-foreground: #121212;
   --destructive: #FF3B3B;
@@ -34,7 +35,7 @@
   --radius: 0.375rem;
   --sidebar: #181818;
   --sidebar-foreground: #F5F5F5;
-  --sidebar-primary: #E8FF00;
+  --sidebar-primary: var(--theme-color)
   --sidebar-primary-foreground: #121212;
   --sidebar-accent: #2A2A2A;
   --sidebar-accent-foreground: #F5F5F5;
@@ -55,7 +56,8 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
+  --color-brand: var(--theme-color);
+  --color-accent: var(--theme-color);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);

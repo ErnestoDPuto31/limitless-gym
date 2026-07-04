@@ -54,7 +54,7 @@ export default function MemberActionButtons({ member }: { member: Member }) {
       <div className="flex items-center justify-end gap-3">
         <button 
           onClick={() => setIsEditOpen(true)}
-          className="p-2 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-xl transition-all cursor-pointer"
+          className="p-2 text-muted-foreground hover:text-(--theme-color) hover:bg-(--theme-color)/10 rounded-xl transition-all cursor-pointer"
         >
           <Edit2 className="h-4 w-4" />
         </button>
@@ -75,7 +75,7 @@ export default function MemberActionButtons({ member }: { member: Member }) {
             </button>
             
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 bg-accent/10 text-accent rounded-xl border border-accent/20">
+              <div className="p-2.5 bg-(--theme-color)/10 text-(--theme-color) rounded-xl border border-(--theme-color)/20">
                 <UserCog className="h-5 w-5" />
               </div>
               <div>
@@ -92,7 +92,7 @@ export default function MemberActionButtons({ member }: { member: Member }) {
                 <input 
                   value={editData.full_name} 
                   onChange={e => setEditData({...editData, full_name: e.target.value})}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium text-foreground outline-none focus:border-accent/40 transition-colors" 
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium text-foreground outline-none focus:border-(--theme-color)/40 transition-colors" 
                 />
               </div>
               <div>
@@ -101,7 +101,7 @@ export default function MemberActionButtons({ member }: { member: Member }) {
                   type="text" 
                   value={editData.phone} 
                   onChange={e => setEditData({...editData, phone: e.target.value})}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium text-foreground outline-none focus:border-accent/40 transition-colors" 
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium text-foreground outline-none focus:border-(--theme-color)/40 transition-colors" 
                 />
               </div>
               <div>
@@ -109,7 +109,7 @@ export default function MemberActionButtons({ member }: { member: Member }) {
                 <select 
                   value={editData.status} 
                   onChange={e => setEditData({...editData, status: e.target.value})}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium text-foreground outline-none focus:border-accent/40 transition-colors"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium text-foreground outline-none focus:border-(--theme-color)/40 transition-colors"
                 >
                   <option value="active">Active</option>
                   <option value="expiring">Expiring</option>
@@ -120,7 +120,7 @@ export default function MemberActionButtons({ member }: { member: Member }) {
               <button 
                 onClick={handleEditSubmit} 
                 disabled={isProcessing}
-                className="w-full py-3.5 mt-4 bg-accent hover:opacity-90 text-accent-foreground font-black text-xs uppercase tracking-[0.15em] rounded-xl transition-all disabled:opacity-50 font-montserrat cursor-pointer"
+                className="w-full py-3.5 mt-4 bg-(--theme-color) hover:opacity-90 text-(--theme-color)-foreground font-black text-xs uppercase tracking-[0.15em] rounded-xl transition-all disabled:opacity-50 font-montserrat cursor-pointer"
               >
                 {isProcessing ? "SAVING CHANGES..." : "SAVE CHANGES"}
               </button>

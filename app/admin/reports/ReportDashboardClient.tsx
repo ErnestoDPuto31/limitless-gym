@@ -82,7 +82,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
   }, [initialData.payments, sortBy, sortOrder]);
 
   const toggleSort = (field: "date" | "amount" | "name") => {
-    setCurrentPage(1); // Reset to page 1 directly here instead of using useEffect
+    setCurrentPage(1);
     if (sortBy === field) {
       setSortOrder(sortOrder === "desc" ? "asc" : "desc");
     } else { 
@@ -99,7 +99,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
 
   // ─── CSV EXPORT WITH TOTALS ───
   const exportToCSV = () => {
-    const headers = ["Transaction ID", "Member ID Mapping", "Payer Name", "Transaction Type", "Amount (₱)", "Timestamp"];
+    const headers = ["Transaction ID", "Member ID", "Name", "Transaction Type", "Amount (₱)", "Timestamp"];
     const rows = processedPayments.map((p) => [
       p.id,
       p.members?.member_id || "N/A",
@@ -151,7 +151,6 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
   const maxRevenue = Math.max(...initialData.chartData.revenue, 1000); 
   const maxLogins = Math.max(...initialData.chartData.logins, 10); 
 
-  // Fixed robust SVG generation using a strict 100x100 viewBox grid
   const generateRobustLinePoints = (data: number[], max: number) => {
     if (data.length === 0) return "";
     return data.map((val, i) => {
@@ -168,11 +167,11 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
       {/* HEADER CONTROLS */}
       <div className="bg-card border border-border rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-accent" />
+          <Calendar className="h-4 w-4 text-(--theme-color)" />
           <select 
             value={period} 
             onChange={(e) => setPeriod(Number(e.target.value))}
-            className="bg-background border border-border rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider outline-none text-foreground focus:border-accent/40"
+            className="bg-background border border-border rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider outline-none text-foreground focus:border-(--theme-color)/40"
           >
             <option value={7}>Last 7 Days (Weekly)</option>
           </select>
@@ -181,7 +180,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <button 
             onClick={exportToCSV}
-            className="flex items-center gap-2 bg-accent hover:opacity-90 text-accent-foreground font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+            className="flex items-center gap-2 bg-(--theme-color) hover:opacity-90 text-(--theme-color)-foreground font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all cursor-pointer"
           >
             <Download className="h-3.5 w-3.5" /> Export to CSV
           </button>
@@ -194,26 +193,25 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
         </div>
       </div>
 
-      {/* DYNAMIC CHARTS GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* REVENUE HISTOGRAM */}
         <div className="bg-card border border-border rounded-2xl p-6 relative flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h4 className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">Real-Time Daily Revenue</h4>
             <div className="text-right">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Volume</span>
-              <span className="text-lg font-black text-accent font-mono leading-none">₱ {totalRevenue.toLocaleString()}</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Amount</span>
+              <span className="text-lg font-black text-(--theme-color) font-mono leading-none">₱ {totalRevenue.toLocaleString()}</span>
             </div>
           </div>
           <div className="flex-1 flex items-end justify-between gap-2 pt-4 px-2 min-h-40">
             {initialData.chartData.revenue.map((val, idx) => (
               <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
-                <div className="text-[10px] font-mono font-bold text-accent opacity-0 group-hover:opacity-100 transition-opacity mb-1 bg-background/80 px-1.5 py-0.5 rounded border border-border">
+                <div className="text-[10px] font-mono font-bold text-(--theme-color) opacity-0 group-hover:opacity-100 transition-opacity mb-1 bg-background/80 px-1.5 py-0.5 rounded border border-border">
                   ₱{val}
                 </div>
                 <div 
                   style={{ height: `${Math.max((val / maxRevenue) * 100, 2)}%` }} 
-                  className="w-full bg-accent rounded-sm transition-all duration-700 hover:opacity-80 relative"
+                  className="w-full bg-(--theme-color) rounded-sm transition-all duration-700 hover:opacity-80 relative"
                 />
                 <span className="text-[10px] text-muted-foreground font-semibold mt-2">
                   {initialData.chartData.labels[idx]}
@@ -223,26 +221,26 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
           </div>
         </div>
 
-        {/* LOGINS LINE CHART (FIXED) */}
+        {/* LOGINS LINE CHART */}
         <div className="bg-card border border-border rounded-2xl p-6 relative flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h4 className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">Real-Time Daily Logins</h4>
             <div className="text-right">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Logins</span>
-              <span className="text-lg font-black text-cyan-400 font-mono leading-none">{totalLogins} <span className="text-xs text-muted-foreground">LOGINS</span></span>
+              <span className="text-lg font-black text-(--theme-color) font-mono leading-none">{totalLogins} <span className="text-xs text-muted-foreground">LOGINS</span></span>
             </div>
           </div>
           <div className="flex-1 relative pt-4 min-h-40 pb-6">
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-[calc(100%-24px)] overflow-visible">
               <polygon
                 points={`0,100 ${loginPoints} 100,100`}
-                fill="var(--color-accent)"
+                fill="var(--theme-color, #DFFF00)"
                 className="opacity-10 transition-all duration-700"
               />
               <polyline
                 points={loginPoints}
                 fill="none"
-                stroke="var(--color-accent)"
+                stroke="var(--theme-color, #DFFF00)"
                 strokeWidth="2"
                 className="opacity-90 transition-all duration-700"
                 vectorEffect="non-scaling-stroke"
@@ -252,7 +250,17 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
                 const y = 100 - (val / maxLogins) * 100;
                 return (
                   <g key={i} className="group">
-                    <circle cx={x} cy={y} r="1.5" fill="var(--color-background)" stroke="var(--color-accent)" strokeWidth="1" vectorEffect="non-scaling-stroke" className="transition-all duration-300" />
+                    {/* ✅ Updated plot point stroke color */}
+                    <circle 
+                      cx={x} 
+                      cy={y} 
+                      r="1.5" 
+                      fill="var(--color-background, #161616)" 
+                      stroke="var(--theme-color, #DFFF00)" 
+                      strokeWidth="1" 
+                      vectorEffect="non-scaling-stroke" 
+                      className="transition-all duration-300" 
+                    />
                   </g>
                 );
               })}
@@ -268,7 +276,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
       <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
         <div className="p-4 bg-background/20 border-b border-border flex justify-between items-center">
           <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Financial Audit Ledger Trail</h3>
-          <span className="text-[10px] font-bold text-muted-foreground bg-background px-2 py-1 rounded-md border border-border">
+          <span className="text-[10px] font-bold text-(#FFFFFF) bg-(--theme-color) px-2 py-1 rounded-md border border-border">
             Total Records: {processedPayments.length}
           </span>
         </div>
@@ -278,14 +286,14 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
             <thead>
               <tr className="border-b border-border bg-background/50 text-[10px] uppercase font-black tracking-widest text-muted-foreground">
                 <th className="py-4 px-6 cursor-pointer hover:text-foreground" onClick={() => toggleSort("name")}>
-                  Payer Identity & ID <ArrowUpDown className="inline h-3 w-3 ml-1" />
+                  Name & ID <ArrowUpDown className="inline h-3 w-3 ml-1" />
                 </th>
                 <th className="py-4 px-6">Method Block</th>
                 <th className="py-4 px-6 cursor-pointer hover:text-foreground" onClick={() => toggleSort("amount")}>
-                  Volume <ArrowUpDown className="inline h-3 w-3 ml-1" />
+                  Amount <ArrowUpDown className="inline h-3 w-3 ml-1" />
                 </th>
                 <th className="py-4 px-6 cursor-pointer hover:text-foreground" onClick={() => toggleSort("date")}>
-                  Precise Timestamp <ArrowUpDown className="inline h-3 w-3 ml-1" />
+                  Timestamp <ArrowUpDown className="inline h-3 w-3 ml-1" />
                 </th>
                 <th className="py-4 px-6 text-right">Admin</th>
               </tr>
@@ -301,11 +309,11 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
                       {tx.members?.member_id && <div className="text-[10px] font-mono text-muted-foreground mt-0.5">ID: {tx.members.member_id}</div>}
                     </td>
                     <td className="py-4 px-6">
-                      <span className="px-2 py-1 bg-accent/10 border border-accent/20 text-accent rounded text-[9px] font-black tracking-widest">
+                      <span className="px-2 py-1 bg-(--theme-color)/10 border border-(--theme-color)/20 text-(--theme-color) rounded text-[9px] font-black tracking-widest">
                         {formatTxType(tx.tx_type)}
                       </span>
                     </td>
-                    <td className="py-4 px-6 font-mono text-accent text-sm">₱ {tx.amount}</td>
+                    <td className="py-4 px-6 font-mono text-(--theme-color) text-sm">₱ {tx.amount}</td>
                     <td className="py-4 px-6 font-mono text-[11px] text-foreground/80 tracking-tight">
                       {new Date(tx.created_at).toLocaleString("en-US", {
                         month: "short", day: "numeric", year: "numeric",
@@ -334,14 +342,14 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
               <button 
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="p-2 bg-background border border-border rounded-lg text-foreground hover:border-accent/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="p-2 bg-background border border-border rounded-lg text-foreground hover:border-(--theme-color)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button 
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="p-2 bg-background border border-border rounded-lg text-foreground hover:border-accent/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="p-2 bg-background border border-border rounded-lg text-foreground hover:border-(--theme-color)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
