@@ -65,6 +65,14 @@ const LogOut = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const MenuIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <line x1="4" x2="20" y1="12" y2="12" />
+    <line x1="4" x2="20" y1="6" y2="6" />
+    <line x1="4" x2="20" y1="18" y2="18" />
+  </svg>
+);
+
 export default function AdminLayout({
   children,
 }: {
@@ -72,7 +80,8 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-    const [gymName, setGymName] = useState<string>("");
+  const [gymName, setGymName] = useState<string>("");
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true); 
 
   useEffect(() => {
     async function loadLayoutSettings() {
@@ -103,64 +112,108 @@ export default function AdminLayout({
 
   return (
     <div className="flex h-screen w-full bg-[#121212] text-neutral-200 overflow-hidden">
-      {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 border-r border-neutral-800 bg-[#161616] flex flex-col justify-between">
+    {/* SIDEBAR NAVIGATION */}
+      <aside className={`relative h-full border-r border-neutral-800 bg-[#161616] flex flex-col justify-between transition-all duration-300 ease-in-out ${
+        isCollapsed ? "w-16" : "w-64"
+      }`}>
+        
         <div>
-          <div className="p-6 flex items-center gap-3 border-b border-neutral-800">
-            <div className="h-8 w-8 bg-(--theme-color) text-black rounded flex items-center justify-center shrink-0">
+          <div className={`flex items-center pt-5 pb-2 transition-all ${
+            isCollapsed ? "justify-center" : "justify-start px-6"
+          }`}>
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1.5 -ml-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all active:scale-95"
+              aria-label="Toggle sidebar menu"
+            >
+              <MenuIcon className="h-5 w-5 hover:text-(--theme-color) transition-colors" />
+            </button>
+          </div>
+
+          {/* LOGO AREA */}
+          <div className={`px-6 pb-6 flex items-center border-b border-neutral-800 transition-all ${
+            isCollapsed ? "justify-center px-4" : "gap-3"
+          }`}>
+            <div className="h-8 w-8 bg-(--theme-color) text-black rounded flex items-center justify-center shrink-0 shadow-lg shadow-black/20">
               <Dumbbell className="h-4 w-4 stroke-[2.5]" />
             </div>
-            <div>
-              <h1 className="font-black text-sm tracking-wider uppercase text-white">
-                {gymName || (
-                  <>Limitless Fitness <span className="text-(--theme-color)">Gym</span></>
-                )}
-              </h1>
-              <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-500">
-                Admin Portal
-              </p>
-            </div>
+            
+            {!isCollapsed && (
+              <div className="animate-fadeIn whitespace-nowrap min-w-0">
+                <h1 className="font-black text-sm tracking-wider uppercase text-white truncate max-w-37.5">
+                  {(() => {
+                    const nameToDisplay = gymName || "Limitless Fitness Gym";
+                    const words = nameToDisplay.split(" ");
+                    if (words.length <= 1) return nameToDisplay;
+                    const lastWord = words.pop();
+                    const remainingText = words.join(" ");
+                    return (
+                      <>
+                        {remainingText} <span className="text-(--theme-color)">{lastWord}</span>
+                      </>
+                    );
+                  })()}
+                </h1>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-500">
+                  Admin Portal
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-4 space-y-1">
-            <p className="px-3 text-[10px] font-bold text-neutral-600 uppercase tracking-widest mb-2">
-              Menu
-            </p>
+          <nav className="p-3 space-y-1 mt-2">
+            {!isCollapsed && (
+              <p className="px-3 text-[10px] font-bold text-neutral-600 uppercase tracking-widest mb-2 animate-fadeIn">
+                Menu
+              </p>
+            )}
             {navigation.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all group ${
+                  title={isCollapsed ? item.name : undefined}
+                  className={`flex items-center rounded-lg text-sm font-semibold transition-all group ${
+                    isCollapsed ? "justify-center p-2.5 h-10 w-10 mx-auto" : "gap-3 px-3 py-2.5"
+                  } ${
                     isActive ? "bg-neutral-800/60 text-(--theme-color)" : "text-neutral-400 hover:text-white hover:bg-neutral-800/30"
                   }`}
                 >
                   <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-(--theme-color)" : "text-neutral-400 group-hover:text-white"}`} />
-                  {item.name}
+                  {!isCollapsed && <span className="animate-fadeIn whitespace-nowrap">{item.name}</span>}
                 </Link>
               );
             })}
           </nav>
         </div>
 
-        <div className="p-4 border-t border-neutral-800 bg-[#141414]">
-          <div className="flex items-center gap-3 p-2 bg-neutral-900/50 rounded-xl border border-neutral-800 mb-2">
-            <div className="h-9 w-9 rounded-lg bg-neutral-800 flex items-center justify-center font-bold text-xs text-neutral-400 border border-neutral-700">
+        {/* Footer Account Status Cards */}
+        <div className={`p-3 border-t border-neutral-800 bg-[#141414] transition-all`}>
+          <div className={`flex items-center bg-neutral-900/50 rounded-xl border border-neutral-800 mb-1.5 transition-all ${
+            isCollapsed ? "justify-center p-1.5" : "gap-3 p-2"
+          }`}>
+            <div className="h-8 w-8 rounded-lg bg-neutral-800 flex items-center justify-center font-bold text-xs text-neutral-400 border border-neutral-700 shrink-0">
               AD
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-white truncate">Admin</p>
-              <p className="text-[10px] text-neutral-500 font-medium truncate">Super User</p>
-            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0 animate-fadeIn">
+                <p className="text-xs font-bold text-white truncate">Admin</p>
+                <p className="text-[10px] text-neutral-500 font-medium truncate">Super User</p>
+              </div>
+            )}
           </div>
+          
           <button 
             onClick={handleSignOut}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-neutral-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/5"
+            title={isCollapsed ? "Sign Out" : undefined}
+            className={`w-full flex items-center font-bold text-neutral-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/5 ${
+              isCollapsed ? "justify-center py-2" : "gap-2 px-3 py-2 text-xs"
+            }`}
           >
-            <LogOut className="h-3.5 w-3.5" />
-            Sign Out
+            <LogOut className="h-3.5 w-3.5 shrink-0" />
+            {!isCollapsed && <span className="animate-fadeIn">Sign Out</span>}
           </button>
         </div>
       </aside>

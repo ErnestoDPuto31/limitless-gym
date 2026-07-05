@@ -18,6 +18,7 @@ function getErrorMessage(err: unknown): string {
   return "An unexpected error occurred.";
 }
 
+
 async function getGymFees(): Promise<{ daily: number; monthly: number }> {
   try {
     const { data, error } = await supabase
@@ -51,6 +52,7 @@ export async function getGymSettings() {
 
     if (error) throw error;
     return { success: true, data };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     return { success: false, error: "Failed to fetch settings" };
   }
@@ -113,7 +115,7 @@ export async function registerMember(data: {
         emergency_phone: data.emergencyPhone,
         date_of_birth: data.dateOfBirth,
         pin_hash: securePinHash, 
-        status: 'active', 
+        status: 'active',
         expires_at: expiresAt.toISOString()
       }])
       .select("id")
@@ -148,24 +150,52 @@ export async function registerMember(data: {
 }
 
 // ─── ACTION 3: MEMBER LOGIN / CHECK-IN ───
-export async function loginMember(memberId: string, phone: string, pin: string) {
+export async function loginMember(memberId: string, pin: string) {
   try {
+    const formattedMemberId = memberId.startsWith("LMT-") 
+      ? memberId 
+      : `LMT-${memberId}`;
+
     const verificationHash = hashPin(pin);
 
     const { data: member, error: fetchError } = await supabase
       .from("members")
-      .select("id, member_id, expires_at, full_name") 
-      .eq("member_id", memberId)
-      .eq("phone", phone)
+      .select("id, member_id, expires_at, full_name, status") 
+      .eq("member_id", formattedMemberId)
       .eq("pin_hash", verificationHash)
       .single();
 
     if (fetchError || !member) {
-      return { success: false, error: "Invalid ID, Phone, or PIN." };
+      return { success: false, error: "Invalid Member ID or PIN." };
+    }
+    
+    // ─── NEW: DYNAMIC STATUS AUTO-UPDATER ───
+    if (member.status !== 'deleted') {
+      const now = new Date();
+      const expiryDate = new Date(member.expires_at);
+      const diffTime = expiryDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      let computedStatus = 'active';
+      if (diffDays < 0) {
+        computedStatus = 'expired';
+      } else if (diffDays <= 7) {
+        computedStatus = 'expiring';
+      }
+      if (member.status !== computedStatus) {
+        const { error: updateError } = await supabase
+          .from("members")
+          .update({ status: computedStatus })
+          .eq("id", member.id);
+      
+        if (!updateError) {
+          member.status = computedStatus;
+        }
+      }
     }
 
-    if (new Date(member.expires_at) < new Date()) {
-       return { success: false, error: "Membership expired. Please renew." };
+    if (member.status === 'expired' || member.status === 'deleted') {
+       return { success: false, error: "Membership expired. Please renew your account." };
     }
 
     const { error: logError } = await supabase
@@ -177,28 +207,40 @@ export async function loginMember(memberId: string, phone: string, pin: string) 
       }]);
 
     if (logError) throw logError;
-
     return { success: true, member };
   } catch (err: unknown) {
     console.error("Login Error Details:", err);
     return { success: false, error: getErrorMessage(err) }; 
   }
 }
-
-// ─── ACTION 4: RENEW EXISTING MEMBERSHIP ---
-export async function renewMember(memberId: string, phone: string) {
+    
+    
+// ─── ACTION 4: RENEW EXISTING MEMBERSHIP ───
+export async function renewMember(memberId: string, pin: string) {
   try {
     const fees = await getGymFees();
+    const formattedMemberId = memberId.startsWith("LMT-") 
+      ? memberId 
+      : `LMT-${memberId}`;
+
+    const verificationHash = hashPin(pin);
 
     const { data: member, error: fetchError } = await supabase
       .from("members")
-      .select("id, full_name, expires_at")
-      .eq("member_id", memberId)
-      .eq("phone", phone)
+      .select("id, full_name, expires_at, status")
+      .eq("member_id", formattedMemberId)
+      .eq("pin_hash", verificationHash)
       .single();
 
     if (fetchError || !member) {
-      return { success: false, error: "Member not found with those credentials." };
+      return { success: false, error: "Invalid Member ID or PIN." };
+    }
+
+    if (member.status === 'active' || member.status === 'expiring') {
+      return { 
+        success: false, 
+        error: `Your membership is currently ${member.status}. You can only renew once it has fully expired.` 
+      };
     }
 
     const currentExpiry = new Date(member.expires_at);

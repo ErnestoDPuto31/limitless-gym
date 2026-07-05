@@ -14,6 +14,7 @@ interface GymSettingsPayload {
   monthly_fee: number;
   admin_password: string;
   theme_color?: string;
+  kiosk_message?: string;
 }
 
 export async function getGymSettings() {
@@ -33,7 +34,8 @@ export async function getGymSettings() {
           daily_fee: 150,
           monthly_fee: 1500,
           admin_password: "limitless2025",
-          theme_color: "#DFFF00", // Added default color for new databases
+          theme_color: "#DFFF00",
+          kiosk_message: "READY TO CRUSH IT?"
         };
         
         const { data: insertedData, error: insertError } = await supabase
@@ -60,6 +62,9 @@ export async function updateGymSettings(payload: GymSettingsPayload) {
     if (!payload.gym_name.trim()) throw new Error("Gym name cannot be empty.");
     if (payload.daily_fee < 0 || payload.monthly_fee < 0) throw new Error("Prices cannot be negative numbers.");
     if (!payload.admin_password.trim()) throw new Error("Password field cannot be blank.");
+    if (payload.kiosk_message && payload.kiosk_message.length > 80) {
+      throw new Error("Kiosk broadcast message cannot exceed 80 characters.");
+    }
 
     const { data, error } = await supabase
       .from("gym_settings")
@@ -70,6 +75,7 @@ export async function updateGymSettings(payload: GymSettingsPayload) {
         monthly_fee: payload.monthly_fee,
         admin_password: payload.admin_password,
         theme_color: payload.theme_color,
+        kiosk_message: payload.kiosk_message,
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1)

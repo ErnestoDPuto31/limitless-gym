@@ -4,6 +4,18 @@ import { useState, useEffect } from "react";
 import { getGymSettings } from "@/app/actions/settingsActions";
 import { logDailySession, registerMember, loginMember, renewMember, loginAdmin } from "@/app/actions/gymActions";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+
+function getExpirationDate(expiresAtString: string): string {
+  if (!expiresAtString) return "N/A";
+  const date = new Date(expiresAtString);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 
 const Dumbbell = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -17,9 +29,8 @@ const Dumbbell = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export default function CheckInPage () {
 
-  
+export default function CheckInPage () {
     // ─── ADMIN LOGIN SYSTEM STATES ───
   const router = useRouter(); 
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -27,10 +38,14 @@ export default function CheckInPage () {
   const [adminPassword, setAdminPassword] = useState("");
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [adminError, setAdminError] = useState("");
+  const [showSuccessSplash, setShowSuccessSplash] = useState(false);
+  const [showRegisterPin, setShowRegisterPin] = useState(false);
 
   const [dynamicGymName, setDynamicGymName] = useState("Limitless Gym");
   const [dynamicDailyFee, setDynamicDailyFee] = useState(0);
   const [dynamicMonthlyFee, setDynamicMonthlyFee] = useState(0);
+  
+  const [kioskMessage, setKioskMessage] = useState("");
 
   // ─── CLOCK STATE ───
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -42,14 +57,16 @@ export default function CheckInPage () {
 
   // ─── MONTHLY PORTAL MASTER STATES ───
   const [isMonthlyOpen, setIsMonthlyOpen] = useState(false);
-  const [monthlyTab, setMonthlyTab] = useState("login"); // "login", "register", or "renew"
+  const [monthlyTab, setMonthlyTab] = useState("login"); 
   const [isMonthlySuccess, setIsMonthlySuccess] = useState(false);
-  const [successMode, setSuccessMode] = useState(""); // "logged_in", "registered", or "renewed"
+  const [successMode, setSuccessMode] = useState(""); 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [memberStatus, setMemberStatus] = useState("");
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
+  const [expiresAt, setExpiresAt] = useState("")
 
   // ─── INPUT FIELDS STATES ───
   const [loginMemberId, setLoginMemberId] = useState("");
-  const [loginPhone, setLoginPhone] = useState("");
   const [loginPin, setLoginPin] = useState("");
 
   const [registerName, setRegisterName] = useState("");
@@ -58,52 +75,57 @@ export default function CheckInPage () {
 
   const [registerEmergencyPhone, setRegisterEmergencyPhone] = useState("");
   const [registerPin, setRegisterPin] = useState("");
-  const [registerDob, setRegisterDob] = useState("");
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobDay, setDobDay] = useState("");
+  const [dobYear, setDobYear] = useState("");
 
   const [renewMemberId, setRenewMemberId] = useState("");
-  const [renewPhone, setRenewPhone] = useState("");
+  const [renewPin, setRenewPin] = useState("");
 
   // Error Message Trackers
   const [loginError, setLoginError] = useState("");
   const [loginPinError, setLoginPinError] = useState("");
+  
   const [registerError, setRegisterError] = useState("");
-  const [renewError, setRenewError] = useState("");
-
   const [registerEmergencyError, setRegisterEmergencyError] = useState("");
   const [registerPinError, setRegisterPinError] = useState("");
   const [registerDobError, setRegisterDobError] = useState("");
+  
+  const [renewError, setRenewError] = useState("");
+  const [renewPinError, setRenewPinError] = useState("");
 
   // ─── MEMBER ID VALIDATION & AUTO-FORMATTER ───
-const formatAndValidateMemberId = (input: string) => {
-  let clean = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const formatAndValidateMemberId = (input: string) => {
+    let clean = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-  if (clean.startsWith("LMT") && clean.length > 3) {
-    const numbersPart = clean.slice(3).replace(/\D/g, ""); 
-    clean = `LMT-${numbersPart.slice(0, 4)}`; 
-  } else if (!clean.startsWith("LMT") && clean.length > 0) {
-    const numbersOnly = clean.replace(/\D/g, "");
-    clean = `LMT-${numbersOnly.slice(0, 4)}`;
-  }
-
-  const isValid = /^LMT-\d{4}$/.test(clean);
-
-  return { formattedId: clean, isValid };
-};
-
-useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-
-    async function loadSettings() {
-      const result = await getGymSettings();
-      if (result.success && result.data) {
-        setDynamicGymName(result.data.gym_name);
-        setDynamicDailyFee(Number(result.data.daily_fee) || 0);
-        setDynamicMonthlyFee(Number(result.data.monthly_fee) || 0);
-      }
+    if (clean.startsWith("LMT") && clean.length > 3) {
+      const numbersPart = clean.slice(3).replace(/\D/g, ""); 
+      clean = `LMT-${numbersPart.slice(0, 4)}`; 
+    } else if (!clean.startsWith("LMT") && clean.length > 0) {
+      const numbersOnly = clean.replace(/\D/g, "");
+      clean = `LMT-${numbersOnly.slice(0, 4)}`;
     }
-    loadSettings();
-    return () => clearInterval(timer);
-  }, []);
+
+    const isValid = /^LMT-\d{4}$/.test(clean);
+
+    return { formattedId: clean, isValid };
+  };
+
+  useEffect(() => {
+      const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+
+      async function loadSettings() {
+        const result = await getGymSettings();
+        if (result.success && result.data) {
+          setDynamicGymName(result.data.gym_name);
+          setDynamicDailyFee(Number(result.data.daily_fee) || 0);
+          setDynamicMonthlyFee(Number(result.data.monthly_fee) || 0);
+          setKioskMessage(result.data.kiosk_message.toUpperCase());
+        }
+      }
+      loadSettings();
+      return () => clearInterval(timer);
+    }, []);
 
   
 
@@ -132,19 +154,42 @@ useEffect(() => {
     setIsMonthlySuccess(false);
     setSuccessMode("");
     setLoginMemberId("");
-    setLoginPhone("");
     setLoginPin("");
+    setRenewPin("");
+    setRenewMemberId("");
     setRegisterName("");
     setRegisterPhone("");
     setRegisterEmergencyPhone("");
     setRegisterPin("");
-    setRegisterDob("");
+    setDobMonth("");
+    setDobDay("");
+    setDobYear("");
     setRenewMemberId("");
-    setRenewPhone("");
     setLoginError("");
     setLoginPinError(""); 
     setRegisterError("");
     setRenewError("");
+  };
+
+  // DOB VALIDATION FUNCTION
+  const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const val = e.target.value.replace(/\D/g, "");
+    setDobMonth(val);
+    if (val.length === 2) document.getElementById("dob-day")?.focus();
+  };
+
+  const handleDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "");
+    setDobDay(val);
+    if (val.length === 2) document.getElementById("dob-year")?.focus();
+  };
+
+  const handleDayKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !dobDay) document.getElementById("dob-month")?.focus();
+  };
+
+  const handleYearKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !dobYear) document.getElementById("dob-day")?.focus();
   };
 
   // ─── AGE VALIDATION HELPER ───
@@ -185,38 +230,60 @@ const handleDailySubmit = async () => {
   }
 };
 
-// ─── SUBMIT ACTION: MONTHLY LOG IN ───
+/// ─── SUBMIT ACTION: MONTHLY LOG IN ───
 const handleMonthlyLoginSubmit = async () => {
   if (isSubmitting) return;
 
-  const { isValid: isIdValid } = formatAndValidateMemberId(loginMemberId);
+  const cleanPin = loginPin.trim();
+  const cleanMemberId = loginMemberId.trim();
+  const fullMemberId = `LMT-${cleanMemberId}`;
+  
+  const { isValid: isIdValid } = formatAndValidateMemberId(fullMemberId);
   if (!isIdValid) {
-    setLoginError("Invalid Member ID format. Must look like LMT-1234");
+    setLoginError("Invalid Member ID format.");
     return;
   }
 
-  const { isValid: isPhoneValid } = validatePHNumber(loginPhone);
-  if (!isPhoneValid) {
-    setLoginError("Please enter a valid 10-digit mobile number.");
-    return;
-  }
-
-  if (loginPin.length !== 4) {
+  if (cleanPin.length !== 4) {
     setLoginPinError("PIN must be exactly 4 digits.");
     return;
   }
   
   setIsSubmitting(true);
-  const result = await loginMember(loginMemberId, `+63${loginPhone}`, loginPin);
-  setIsSubmitting(false);
+  
+  const result = await loginMember(fullMemberId, cleanPin);
 
-  if (result.success) {
+  if (result.success && result.member) {
     setSuccessMode("logged_in");
+    setMemberStatus(result.member.status); 
+    setExpiresAt(result.member.expires_at);
+    
+    if (result.member.expires_at) {
+      const expiryDate = new Date(result.member.expires_at);
+      const today = new Date();
+      const diffTime = expiryDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      setDaysRemaining(diffDays > 0 ? diffDays : 0);
+    }
+
     setIsMonthlySuccess(true); 
-    setLoginMemberId("");
-    setLoginPhone("");
-    setLoginPin("");
+    
+    const displayTime = result.member.status === "expiring" ? 4500 : 2500;
+
+    setTimeout(() => {
+      setIsMonthlyOpen(false);
+      setIsMonthlySuccess(false);
+      setSuccessMode(""); 
+      setLoginMemberId("");
+      setLoginPin("");
+      setMemberStatus(""); 
+      setExpiresAt("");
+      setDaysRemaining(null); 
+      setIsSubmitting(false);
+    }, displayTime);
+
   } else {
+    setIsSubmitting(false);
     setLoginError(result.error || "Login failed. Please try again.");
   }
 };
@@ -247,7 +314,8 @@ const handleMonthlyRegisterSubmit = async () => {
     return;
   }
 
-  const ageCheck = validateAge(registerDob);
+  const finalDob = `${dobMonth}/${dobDay}/${dobYear}`;
+  const ageCheck = validateAge(finalDob);
   if (!ageCheck.isValid) {
     setRegisterDobError(ageCheck.message);
     return;
@@ -258,7 +326,7 @@ const handleMonthlyRegisterSubmit = async () => {
     fullName: registerName,
     phone: `+63${registerPhone}`,
     emergencyPhone: `+63${registerEmergencyPhone}`,
-    dateOfBirth: registerDob,
+    dateOfBirth: finalDob,
     pin: registerPin
   });
   setIsSubmitting(false);
@@ -268,75 +336,85 @@ const handleMonthlyRegisterSubmit = async () => {
     setSuccessMode("registered");
     setIsMonthlySuccess(true);
     setRegisterName("");
+    setRegisterPhone(""); 
     setRegisterEmergencyPhone("");
-    setRegisterDob("");
+    setDobMonth(""); 
+    setDobDay("");   
+    setDobYear("");  
     setRegisterPin("");
   } else {
     setRegisterError(result.error || "Failed to register account.");
   }
 };
 
-// ─── SUBMIT ACTION: MONTHLY MEMBERSHIP RENEWAL ───
 const handleMonthlyRenewSubmit = async () => {
   if (isSubmitting) return;
+  const fullMemberId = `LMT-${renewMemberId}`;
 
-  const { isValid: isIdValid } = formatAndValidateMemberId(renewMemberId);
+  const { isValid: isIdValid } = formatAndValidateMemberId(fullMemberId);
   if (!isIdValid) {
-    setRenewError("Invalid Member ID format. Must look like LMT-1234");
+    setRenewError("Invalid Member ID format.");
     return;
   }
-
-  const { isValid: isPhoneValid } = validatePHNumber(renewPhone);
-  if (!isPhoneValid) {
-    setRenewError("Please enter a valid 10-digit mobile number.");
+  if (renewPin.length !== 4) {
+    setRenewPinError("PIN must be exactly 4 digits.");
     return;
   }
 
   setIsSubmitting(true);
-  const result = await renewMember(renewMemberId, `+63${renewPhone}`);
-  setIsSubmitting(false);
+  const result = await renewMember(fullMemberId, renewPin);
 
   if (result.success) {
     setSuccessMode("renewed");
     setIsMonthlySuccess(true); 
-    setRenewMemberId("");
-    setRenewPhone("");
+    setTimeout(() => {
+      setIsMonthlyOpen(false);
+      setIsMonthlySuccess(false);
+      setSuccessMode(""); 
+      setRenewMemberId("");
+      setRenewPin("");
+      setIsSubmitting(false);
+    }, 2500);
+
   } else {
+    setIsSubmitting(false);
     setRenewError(result.error || "Could not process renewal request.");
   }
 };
 
 // ─── SUBMIT ACTION: ADMIN PORTAL LOGIN ───
-const handleAdminLoginSubmit = async () => {
-  if (!adminUsername.trim() || !adminPassword.trim() || isSubmitting) return;
-  
-  setIsSubmitting(true);
-  setAdminError("");
+  const handleAdminLoginSubmit = async () => {
+    if (!adminUsername.trim() || !adminPassword.trim() || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    setAdminError("");
 
-  try {
-    const result = await loginAdmin(adminUsername, adminPassword);
+    try {
+      const result = await loginAdmin(adminUsername, adminPassword);
+      if (result.success) {
+        setIsSubmitting(false);
+        setAdminError("");
+        setShowSuccessSplash(true); 
+        
+        setTimeout(() => {
+          setIsAdminOpen(false);
+          setShowSuccessSplash(false); 
+          setAdminUsername("");
+          setAdminPassword("");
+          
+          router.push("/admin");
+        }, 1500); 
 
-    if (result.success) {
-      setAdminError("");
-      setIsAdminOpen(false);
-      setIsSubmitting(false); 
-      
-      setAdminUsername("");
-      setAdminPassword("");
-
-      setTimeout(() => {
-        router.push("/admin");
-      }, 50);
-    } else {
-      setAdminError(result.error || "Invalid username or password credentials.");
-      setIsSubmitting(false); 
+      } else {
+        setAdminError(result.error || "Invalid username or password credentials.");
+        setIsSubmitting(false); 
+      }
+    } catch (error) {
+      console.error("Client login action failed:", error);
+      setAdminError("A system connection error occurred. Please try again.");
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error("Client login action failed:", error);
-    setAdminError("A system connection error occurred. Please try again.");
-    setIsSubmitting(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground font-inter flex flex-col justify-between p-6 md:p-10 select-none relative">
@@ -363,15 +441,62 @@ const handleAdminLoginSubmit = async () => {
       {/* PORTAL MAIN COMPONENT GRAPHICS */}
       <main className="flex-1 flex flex-col items-center justify-center my-auto max-w-4xl w-full mx-auto text-center">
         <span className="text-muted-foreground font-montserrat font-bold tracking-[0.25em] text-xs uppercase mb-4">Member Check-In</span>
-        <h1 className="font-montserrat font-black text-5xl md:text-7xl tracking-tight leading-none uppercase mb-4">Ready to <br /><span className="text-(--theme-color)">Crush it?</span></h1>
+        
+        <h1 className="font-montserrat font-black text-5xl md:text-7xl tracking-tight leading-none uppercase mb-4">
+          {(() => {
+            const message = (kioskMessage || "READY TO CRUSH IT?").toUpperCase();
+            
+            // Handle the specific hardcoded case
+            if (message === "READY TO CRUSH IT?") {
+              return (
+                <>
+                  READY TO <br />
+                  <span className="text-(--theme-color)">CRUSH IT?</span>
+                </>
+              );
+            }
+
+            const words = message.split(" ");
+            
+            if (words.length <= 2) {
+              return <span className="text-(--theme-color)">{message}</span>;
+            }
+            
+            const lastWord = words.pop();
+            const secondToLastWord = words.pop();
+            const remainingText = words.join(" ");
+            
+            return (
+              <>
+                {remainingText} <br />
+                <span className="text-(--theme-color)">
+                  {secondToLastWord} {lastWord}
+                </span>
+              </>
+            );
+          })()}
+        </h1>
+        
         <p className="text-muted-foreground text-base md:text-lg max-w-md mx-auto font-medium mb-12">Select your session type to get started.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
-          <button onClick={() => setIsDailyOpen(true)} className="bg-(--theme-color) text-(#FFFFFF) p-8 rounded-2xl text-left flex flex-col justify-between h-56 transition-all duration-200 active:scale-[0.98] cursor-pointer group hover:brightness-110 shadow-xl shadow-(--theme-color)/5">
-            <div className="bg-black/10 p-3 rounded-xl w-fit"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <button 
+            onClick={() => setIsDailyOpen(true)} 
+            className="bg-(--theme-color) text-neutral-900 p-8 rounded-2xl text-left flex flex-col justify-between h-56 transition-all duration-200 active:scale-[0.98] cursor-pointer group hover:brightness-110 shadow-xl shadow-(--theme-color)/5"
+          >
+            <div className="bg-black/10 p-3 rounded-xl w-fit">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
             <div>
-              <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1">Log Daily Session</h3>
-              <p className="font-semibold text-sm opacity-80">Walk-in • ₱ {dynamicDailyFee}</p>
+              <h3 className="font-montserrat font-black text-2xl tracking-wide uppercase leading-tight mb-1">
+                Log Daily Session
+              </h3>
+              <p className="font-bold text-sm opacity-80">
+                Walk-in • ₱ {dynamicDailyFee}
+              </p>
             </div>
           </button>
 
@@ -468,97 +593,182 @@ const handleAdminLoginSubmit = async () => {
                       
                       <div className="flex flex-col gap-1.5">
                         <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Member ID</label>
-                        <input type="text" value={loginMemberId} onChange={(e) => { setLoginMemberId(e.target.value.toUpperCase()); setLoginError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" />
+                        <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
+                          <span className="px-3 text-sm font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3.5 font-montserrat">LMT-</span>
+                          <input type="text" maxLength={4} value={loginMemberId.replace('LMT-', '')} onChange={(e) => { setLoginMemberId(e.target.value.replace(/\D/g, "")); setLoginError(""); }} placeholder="1001" className="w-full px-4 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
+                        </div>
+                        {loginError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{loginError}</p>}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Registered Mobile</label>
-                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
-                            <span className="px-3 text-sm font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3.5 font-montserrat">+63</span>
-                            <input type="text" value={loginPhone} onChange={(e) => handlePhoneTyping(e.target.value, setLoginPhone, setLoginError)} placeholder="917 123 4567" className="w-full px-4 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
-                          </div>
-                          {loginError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{loginError}</p>}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">4-Digit PIN</label>
-                          <input type="password" maxLength={4} value={loginPin} onChange={(e) => { setLoginPin(e.target.value.replace(/\D/g, "")); setLoginPinError(""); }} placeholder="••••" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors text-center tracking-[0.5em]" />
-                          {loginPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{loginPinError}</p>}
-                        </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">4-Digit PIN</label>
+                        <input type="password" maxLength={4} value={loginPin} onChange={(e) => { setLoginPin(e.target.value.replace(/\D/g, "")); setLoginPinError(""); }} placeholder="••••" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors text-center tracking-[0.5em]" />
+                        {loginPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{loginPinError}</p>}
                       </div>
 
-                      <button onClick={handleMonthlyLoginSubmit} disabled={!loginMemberId.trim() || loginPhone.length < 10 || loginPin.length !== 4} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">CONFIRM CHECK-IN</button>
+                      <button onClick={handleMonthlyLoginSubmit} disabled={!loginMemberId.trim() || loginPin.length !== 4} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">CONFIRM CHECK-IN</button>
                     </div>
                   )}
 
                   {/* TAB 2: REGISTER */}
                   {monthlyTab === "register" && (
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 animate-fadeIn">
                       
+                      {/* Full Name */}
                       <div className="flex flex-col gap-1.5">
                         <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Full Name</label>
-                        <input type="text" value={registerName} onChange={(e) => { setRegisterName(e.target.value); setRegisterError(""); }} placeholder="e.g. Juan Dela Cruz" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" />
+                        <input 
+                          type="text" 
+                          value={registerName} 
+                          onChange={(e) => { setRegisterName(e.target.value); setRegisterError(""); }} 
+                          placeholder="e.g. Juan Dela Cruz" 
+                          className="w-full px-4 h-12.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" 
+                        />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      {/* Phone Numbers - Stacks on mobile, splits on tablet (md:grid-cols-2) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Mobile No.</label>
-                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
-                            <span className="px-2.5 text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3 font-montserrat">+63</span>
-                            <input type="text" value={registerPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRegisterPhone, setRegisterError)} placeholder="917 123 4567" className="w-full px-3 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
+                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors h-12.5">
+                            <span className="px-3 h-full flex items-center text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 font-montserrat">+63</span>
+                            <input 
+                              type="text" 
+                              value={registerPhone} 
+                              onChange={(e) => handlePhoneTyping(e.target.value, setRegisterPhone, setRegisterError)} 
+                              placeholder="917 123 4567" 
+                              className="w-full px-3 h-full bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" 
+                            />
                           </div>
                           {registerError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerError}</p>}
                         </div>
 
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Emergency No.</label>
-                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
-                            <span className="px-2.5 text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3 font-montserrat">+63</span>
-                            <input type="text" value={registerEmergencyPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRegisterEmergencyPhone, setRegisterEmergencyError)} placeholder="917 123 4567" className="w-full px-3 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
+                          <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors h-12.5">
+                            <span className="px-3 h-full flex items-center text-xs font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 font-montserrat">+63</span>
+                            <input 
+                              type="text" 
+                              value={registerEmergencyPhone} 
+                              onChange={(e) => handlePhoneTyping(e.target.value, setRegisterEmergencyPhone, setRegisterEmergencyError)} 
+                              placeholder="917 123 4567" 
+                              className="w-full px-3 h-full bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" 
+                            />
                           </div>
                           {registerEmergencyError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerEmergencyError}</p>}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Date of Birth</label>
-                          <input type="date" value={registerDob} onChange={(e) => { setRegisterDob(e.target.value); setRegisterDobError(""); }} className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors scheme-dark" />
-                          {registerDobError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerDobError}</p>}
-                        </div>
+                      {/* Date of Birth & PIN */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Date of Birth</label>
+                              
+                              <div className="flex items-center px-4 h-12.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 focus-within:border-(--theme-color)/40 transition-colors">
+                                
+                                <input 
+                                  id="dob-month"
+                                  type="text" 
+                                  placeholder="MM"
+                                  maxLength={2}
+                                  value={dobMonth}
+                                  onChange={handleMonthChange}
+                                  className="w-8 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none text-center"
+                                />
+                                
+                                <span className="text-neutral-600 font-bold mx-1">/</span>
+                                
+                                <input 
+                                  id="dob-day"
+                                  type="text" 
+                                  placeholder="DD"
+                                  maxLength={2}
+                                  value={dobDay}
+                                  onChange={handleDayChange}
+                                  onKeyDown={handleDayKeyDown}
+                                  className="w-8 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none text-center"
+                                />
+                                
+                                <span className="text-neutral-600 font-bold mx-1">/</span>
+                                
+                                <input 
+                                  id="dob-year"
+                                  type="text" 
+                                  placeholder="YYYY"
+                                  maxLength={4}
+                                  value={dobYear}
+                                  onChange={(e) => setDobYear(e.target.value.replace(/\D/g, ""))}
+                                  onKeyDown={handleYearKeyDown}
+                                  className="w-12 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none text-center"
+                                />
+                                
+                              </div>
+                              {registerDobError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerDobError}</p>}
+                            </div>
+
 
                         <div className="flex flex-col gap-1.5">
                           <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">4-Digit PIN</label>
-                          <input type="password" maxLength={4} value={registerPin} onChange={(e) => { setRegisterPin(e.target.value.replace(/\D/g, "")); setRegisterPinError(""); }} placeholder="••••" className="w-full px-4 py-3 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors text-center tracking-[0.5em]" />
+                          <div className="relative flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors h-12.5">
+                            <input 
+                              type={showRegisterPin ? "text" : "password"} 
+                              maxLength={4} 
+                              value={registerPin} 
+                              onChange={(e) => { setRegisterPin(e.target.value.replace(/\D/g, "")); setRegisterPinError(""); }} 
+                              placeholder="••••" 
+                              className={`w-full h-full pl-4 pr-12 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none text-center ${!showRegisterPin && registerPin.length > 0 ? 'tracking-[0.5em]' : 'tracking-widest'}`}
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => setShowRegisterPin(!showRegisterPin)}
+                              className="absolute right-4 text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
+                              aria-label="Toggle PIN visibility"
+                            >
+                              {showRegisterPin ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                              )}
+                            </button>
+                          </div>
                           {registerPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{registerPinError}</p>}
                         </div>
                       </div>
 
                       {/* DYNAMIC REGISTRATION PRICE DISPLAY */}
-                      <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 mt-1">
+                      <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-4 h-12.5 mt-1 shadow-inner shadow-black/20">
                         <span className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Registration Fee</span>
                         <span className="text-(--theme-color) text-lg font-black font-montserrat">₱ {dynamicMonthlyFee}</span>
                       </div>
 
-                      <button onClick={handleMonthlyRegisterSubmit} disabled={!registerName.trim() || registerPhone.length < 10 || registerEmergencyPhone.length < 10 || registerPin.length !== 4 || !registerDob} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-1">CREATE MEMBERSHIP</button>
+                      {/* Submit Button */}
+                        <button 
+                          onClick={handleMonthlyRegisterSubmit} 
+                          disabled={!registerName.trim() || registerPhone.length < 10 || registerEmergencyPhone.length < 10 || registerPin.length !== 4 || dobMonth.length !== 2 || dobDay.length !== 2 || dobYear.length !== 4}
+                          className="w-full h-13.5 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-1 shadow-lg shadow-(--theme-color)/10"
+                        >
+                          CREATE MEMBERSHIP
+                        </button>
                     </div>
                   )}
 
                   {/* TAB 3: RENEW */}
                   {monthlyTab === "renew" && (
                     <div className="flex flex-col gap-4">
+                      
                       <div className="flex flex-col gap-1.5">
                         <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Your Member ID</label>
-                        <input type="text" value={renewMemberId} onChange={(e) => { setRenewMemberId(e.target.value.toUpperCase()); setRenewError(""); }} placeholder="e.g. LMT-1001" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Associated Mobile Number</label>
                         <div className="flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
-                          <span className="px-3 text-sm font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3.5 font-montserrat">+63</span>
-                          <input type="text" value={renewPhone} onChange={(e) => handlePhoneTyping(e.target.value, setRenewPhone, setRenewError)} placeholder="917 123 4567" className="w-full px-4 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
+                          <span className="px-3 text-sm font-bold text-neutral-500 select-none border-r border-neutral-800 bg-neutral-900/40 py-3.5 font-montserrat">LMT-</span>
+                          <input type="text" maxLength={4} value={renewMemberId.replace('LMT-', '')} onChange={(e) => { setRenewMemberId(e.target.value.replace(/\D/g, "")); setRenewError(""); }} placeholder="1001" className="w-full px-4 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" />
                         </div>
                         {renewError && <p className="text-red-500 text-[11px] font-semibold mt-0.5 tracking-wide">{renewError}</p>}
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">4-Digit PIN</label>
+                        <input type="password" maxLength={4} value={renewPin || ""} onChange={(e) => { setRenewPin(e.target.value.replace(/\D/g, "")); setRenewPinError(""); }} placeholder="••••" className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors text-center tracking-[0.5em]" />
+                        {renewPinError && <p className="text-red-500 text-[10px] font-semibold tracking-wide">{renewPinError}</p>}
                       </div>
 
                       {/* DYNAMIC RENEWAL PRICE DISPLAY */}
@@ -567,7 +777,7 @@ const handleAdminLoginSubmit = async () => {
                         <span className="text-(--theme-color) text-lg font-black font-montserrat">₱ {dynamicMonthlyFee}</span>
                       </div>
 
-                      <button onClick={handleMonthlyRenewSubmit} disabled={!renewMemberId.trim() || renewPhone.length < 10} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">PROCESS 30-DAY RENEWAL</button>
+                      <button onClick={handleMonthlyRenewSubmit} disabled={!renewMemberId.trim() || renewPin?.length !== 4} className="w-full py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer mt-2">PROCESS 30-DAY RENEWAL</button>
                     </div>
                   )}
 
@@ -582,7 +792,30 @@ const handleAdminLoginSubmit = async () => {
                   {successMode === "logged_in" && (
                     <>
                       <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">ACCESS GRANTED</h3>
-                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">ID <span className="text-(--theme-color) font-bold">{loginMemberId}</span> verified successfully.<br />Welcome back to Limitless Fitness Gym!</p>
+                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">
+                        ID <span className="text-(--theme-color) font-bold">LMT-{loginMemberId}</span> verified successfully.<br />Welcome back to Limitless Fitness Gym!
+                      </p>
+                      
+                      {/* EXPIRING SOON NOTICE */}
+                      {memberStatus === "expiring" && expiresAt && (
+                        <div className="mt-5 p-4 bg-orange-500/10 border border-orange-500/40 rounded-xl animate-pulse text-center">
+                          <p className="text-orange-500 text-[10px] font-black uppercase tracking-widest font-montserrat mb-0.5">
+                            ⚠️ Warning: Membership Expiring Soon
+                          </p>
+                          
+                          <p className="text-orange-100 text-base font-black uppercase tracking-wide mb-0.5">
+                            Expires in <span className="text-orange-400 text-lg">{daysRemaining !== null ? daysRemaining : 'A FEW'} {daysRemaining === 1 ? 'DAY' : 'DAYS'}</span>
+                          </p>
+                          
+                          <p className="text-orange-200 text-xs font-bold uppercase tracking-wider mb-2">
+                            On {getExpirationDate(expiresAt)}
+                          </p>
+                          
+                          <p className="text-orange-300/80 text-[10px] font-semibold tracking-wider uppercase border-t border-orange-500/20 pt-1.5">
+                            Renew soon to keep access
+                          </p>
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -596,25 +829,25 @@ const handleAdminLoginSubmit = async () => {
                       <p className="text-muted-foreground text-xs font-medium px-2 leading-relaxed mb-1">
                         Please <span className="text-neutral-200 font-bold underline decoration-(--theme-color)">TAKE A PICTURE</span> or write down this Member ID code to check-in for future gym sessions.
                       </p>
-                      <p className="text-neutral-500 text-[10px] font-medium italic mt-2">
+                      <p className="text-neutral-500 text-[10px] font-medium italic mt-2 mb-4">
                         An SMS confirmation has been pushed to +63 {registerPhone}
                       </p>
+                      
+                      <button 
+                        onClick={closeMonthlyPortal} 
+                        className="w-full py-4 mt-2 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-neutral-100 font-montserrat hover:bg-neutral-700 transition-all active:scale-[0.99] cursor-pointer border border-neutral-700"
+                      >
+                        I HAVE SAVED MY ID (CLOSE)
+                      </button>
                     </>
                   ) : null}
 
                   {successMode === "renewed" && (
                     <>
                       <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">RENEWAL SUCCESSFUL</h3>
-                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">Account <span className="text-(--theme-color) font-bold">{renewMemberId}</span> extended for another 30 days.<br />Your status is active.</p>
+                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">Account <span className="text-(--theme-color) font-bold">LMT-{renewMemberId}</span> extended for another 30 days.<br />Your status is active.</p>
                     </>
                   )}
-
-                  <button 
-                    onClick={closeMonthlyPortal} 
-                    className="w-full mt-6 py-4 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color) text-(--theme-color)-foreground font-montserrat hover:brightness-110 shadow-lg shadow-(--theme-color)/10 transition-all active:scale-[0.99] cursor-pointer"
-                  >
-                    GOT IT, CLOSE WINDOW
-                  </button>
                 </div>
               )}
             </div>
@@ -625,93 +858,124 @@ const handleAdminLoginSubmit = async () => {
       {/* ─── MODAL 3: SECURE ADMIN SIGN IN ─── */}
       {isAdminOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 bg-[radial-gradient(#222_1px,transparent_1px)] bg-size-[16px_16px]">
-          <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl p-8">
+          <div className="relative w-full max-w-md bg-[#1C1C1E] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl p-8 min-h-105 flex flex-col">
             
-            {/* Close Button */}
-            <button 
-              onClick={() => { setIsAdminOpen(false); setAdminError(""); setAdminUsername(""); setAdminPassword(""); }} 
-              className="absolute top-6 right-6 w-8 h-8 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors cursor-pointer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-            </button>
-
-            {/* Header branding block */}
+            {!showSuccessSplash && (
+              <button 
+                onClick={() => { setIsAdminOpen(false); setAdminError(""); setAdminUsername(""); setAdminPassword(""); }} 
+                className="absolute top-6 right-6 w-8 h-8 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            )}
             <div className="flex flex-col items-center text-center mb-8">
               <div className="bg-(--theme-color) text-(--theme-color)-foreground p-2 rounded-xl mb-3">
                 <Dumbbell className="h-4 w-4 stroke-[2.5]" />
               </div>
-              {/* NOW USING DYNAMIC GYM NAME */}
               <h2 className="font-montserrat font-black text-lg tracking-wider uppercase text-neutral-100">
-                {dynamicGymName}
+                {dynamicGymName || "SYSTEM"}
               </h2>
               <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mt-0.5">Admin Portal</p>
             </div>
 
-            <div className="flex flex-col gap-5">
-              <div>
-                <h3 className="text-neutral-100 text-xl font-black tracking-tight font-montserrat">Secure Sign In</h3>
-                <p className="text-neutral-500 text-xs mt-0.5 font-medium">Authorized personnel only.</p>
-              </div>
+            <div className="flex-1 flex flex-col justify-center">
+              
+              {showSuccessSplash ? (
+                
+                <div className="flex flex-col items-center justify-center gap-4 animate-fadeIn">
+                  <div className="relative flex items-center justify-center h-16 w-16 mb-2">
+                    <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse" />
+                    <div className="h-12 w-12 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center relative z-10 scale-in">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                  </div>
+                  <h3 className="text-emerald-400 text-lg font-black tracking-widest uppercase font-montserrat">Access Granted</h3>
+                  <p className="text-neutral-500 text-[10px] font-bold uppercase tracking-widest animate-pulse">Initializing Dashboard...</p>
+                </div>
 
-              {adminError && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold rounded-xl">
-                  {adminError}
+              ) : isSubmitting ? (
+                
+                <div className="flex flex-col items-center justify-center gap-6 animate-fadeIn py-4">
+                  <div className="relative flex items-center justify-center h-14 w-14">
+                    <div className="absolute inset-0 bg-(--theme-color)/20 blur-xl rounded-full animate-pulse" />
+                    <div className="absolute inset-0 rounded-full border-[3px] border-neutral-800/80" />
+                    <div className="absolute inset-0 rounded-full border-[3px] border-(--theme-color) border-r-transparent border-b-transparent animate-spin" style={{ animationDuration: '1.5s' }} />
+                    <Loader2 className="h-5 w-5 text-white animate-spin relative z-10" style={{ animationDuration: '1s', animationDirection: 'reverse' }} />
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5 text-center">
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Verifying</h3>
+                    <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest animate-pulse">Checking credentials...</p>
+                  </div>
+                </div>
+
+              ) : (
+                
+                <div className="flex flex-col gap-5 animate-fadeIn">
+                  <div>
+                    <h3 className="text-neutral-100 text-xl font-black tracking-tight font-montserrat">Secure Sign In</h3>
+                    <p className="text-neutral-500 text-xs mt-0.5 font-medium">Authorized personnel only.</p>
+                  </div>
+
+                  {adminError && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold rounded-xl animate-fadeIn">
+                      {adminError}
+                    </div>
+                  )}
+
+                  {/* Username Input */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Username</label>
+                    <input 
+                      type="text" 
+                      value={adminUsername} 
+                      onChange={(e) => setAdminUsername(e.target.value)} 
+                      placeholder="admin" 
+                      className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" 
+                      onKeyDown={(e) => e.key === 'Enter' && adminUsername && adminPassword && handleAdminLoginSubmit()}
+                    />
+                  </div>
+
+                  {/* Password Input */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Password</label>
+                    <div className="relative flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
+                      <input 
+                        type={showAdminPassword ? "text" : "password"} 
+                        value={adminPassword} 
+                        onChange={(e) => setAdminPassword(e.target.value)} 
+                        placeholder="••••••••••••" 
+                        className="w-full pl-4 pr-12 py-3.5 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" 
+                        onKeyDown={(e) => e.key === 'Enter' && adminUsername && adminPassword && handleAdminLoginSubmit()}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowAdminPassword(!showAdminPassword)}
+                        className="absolute right-4 text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
+                      >
+                        {showAdminPassword ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Submit Sign In */}
+                  <button 
+                    onClick={handleAdminLoginSubmit}
+                    disabled={!adminUsername.trim() || !adminPassword.trim() || isSubmitting}
+                    className="w-full py-4 mt-2 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color)/20 hover:bg-(--theme-color) text-(--theme-color) hover:text-(--theme-color)-foreground border border-(--theme-color)/30 hover:border-transparent font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer"
+                  >
+                    SIGN IN
+                  </button>
+
                 </div>
               )}
-
-              {/* Username Input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Username</label>
-                <input 
-                  type="text" 
-                  value={adminUsername} 
-                  onChange={(e) => setAdminUsername(e.target.value)} 
-                  placeholder="admin" 
-                  className="w-full px-4 py-3.5 rounded-xl bg-[#2A2A2C] border border-neutral-800 text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none focus:border-(--theme-color)/40 transition-colors" 
-                />
-              </div>
-
-              {/* Password Input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-neutral-400 text-[10px] uppercase tracking-[0.15em] font-bold font-montserrat">Password</label>
-                <div className="relative flex items-center bg-[#2A2A2C] border border-neutral-800 rounded-xl overflow-hidden focus-within:border-(--theme-color)/40 transition-colors">
-                  <input 
-                    type={showAdminPassword ? "text" : "password"} 
-                    value={adminPassword} 
-                    onChange={(e) => setAdminPassword(e.target.value)} 
-                    placeholder="••••••••••••" 
-                    className="w-full pl-4 pr-12 py-3.5 bg-transparent text-neutral-100 placeholder-neutral-600 text-sm font-medium outline-none" 
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowAdminPassword(!showAdminPassword)}
-                    className="absolute right-4 text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
-                  >
-                    {showAdminPassword ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit Sign In */}
-              <button 
-                onClick={handleAdminLoginSubmit}
-                disabled={!adminUsername.trim() || !adminPassword.trim()}
-                className="w-full py-4 mt-2 rounded-xl font-black text-xs tracking-[0.15em] bg-(--theme-color)/20 hover:bg-(--theme-color) text-(--theme-color) hover:text-(--theme-color)-foreground border border-(--theme-color)/30 hover:border-transparent font-montserrat disabled:opacity-20 transition-all active:scale-[0.99] cursor-pointer"
-              >
-                SIGN IN
-              </button>
-
             </div>
-
           </div>
         </div>
       )}
-
-    </div>
-    
+    </div> 
   );
 }

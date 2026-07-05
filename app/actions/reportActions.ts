@@ -7,6 +7,21 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+async function verifyAdminPassword(inputPassword: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("gym_settings")
+    .select("admin_password")
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    console.error("Database error fetching admin password:", error);
+    return false;
+  }
+
+  return data.admin_password === inputPassword;
+}
+
 export async function getReportData(periodDays: number = 7) {
   try {
     const cutoffDate = new Date();
@@ -80,11 +95,14 @@ export async function getReportData(periodDays: number = 7) {
 // Strictly Hard Delete (Single)
 export async function deletePaymentRecord(id: string, passwordVerify: string) {
   try {
-    if (passwordVerify !== process.env.ADMIN_PASSWORD) {
+    const isAuthorized = await verifyAdminPassword(passwordVerify);
+    if (!isAuthorized) {
       return { success: false, error: "Authentication failed: Incorrect master password." };
     }
+
     const { error } = await supabase.from("payments").delete().eq("id", id);
     if (error) throw error;
+    
     revalidatePath("/admin/reports");
     return { success: true };
   } catch (err: unknown) {
@@ -95,9 +113,11 @@ export async function deletePaymentRecord(id: string, passwordVerify: string) {
 // Strictly Hard Delete (Bulk)
 export async function bulkDeletePayments(passwordVerify: string) {
   try {
-    if (passwordVerify !== process.env.ADMIN_PASSWORD) {
+    const isAuthorized = await verifyAdminPassword(passwordVerify);
+    if (!isAuthorized) {
       return { success: false, error: "Authentication failed: Incorrect master password." };
     }
+
     // Purge all records entirely
     const { error } = await supabase.from("payments").delete().neq("id", "00000000-0000-0000-0000-000000000000"); 
     if (error) throw error;

@@ -250,7 +250,6 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
                 const y = 100 - (val / maxLogins) * 100;
                 return (
                   <g key={i} className="group">
-                    {/* ✅ Updated plot point stroke color */}
                     <circle 
                       cx={x} 
                       cy={y} 

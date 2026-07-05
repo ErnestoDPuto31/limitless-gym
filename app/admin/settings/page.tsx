@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getGymSettings, updateGymSettings } from "@/app/actions/settingsActions";
-import { Lock, DollarSign, Building, Clock, Save, Loader2, Eye, EyeOff, Palette } from "lucide-react";
+import { Lock, DollarSign, Building, Clock, Save, Loader2, Eye, EyeOff, Palette, MessageSquare } from "lucide-react";
 import "@/app/styles/fonts.css"; 
 
 const PRESET_COLORS = [
@@ -17,7 +17,6 @@ const PRESET_COLORS = [
   "#FF00FF", 
   "#0031f5", 
   "#00FF00", 
-  "#E0FE00", 
 ];
 
 export default function SettingsPage() {
@@ -25,7 +24,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // General Settings State Variables
   const [gymName, setGymName] = useState("");
   const [dailyFee, setDailyFee] = useState<number>(0);
   const [monthlyFee, setMonthlyFee] = useState<number>(0);
@@ -33,12 +31,14 @@ export default function SettingsPage() {
   const [openTime, setOpenTime] = useState("06:00");
   const [closeTime, setCloseTime] = useState("22:00");
   
-  // Theme Color State
   const [themeColor, setThemeColor] = useState("#DFFF00");
 
   const [adminPassword, setAdminPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  const [kioskMessage, setKioskMessage] = useState("");
+  const MESSAGE_LIMIT = 50;
 
   useEffect(() => {
     async function initSettings() {
@@ -51,8 +51,8 @@ export default function SettingsPage() {
           setMonthlyFee(Number(result.data.monthly_fee) || 0);
           setAdminPassword(result.data.admin_password || "");
           setConfirmPassword(result.data.admin_password || "");
-          
           setThemeColor(result.data.theme_color || "#DFFF00");
+          setKioskMessage(result.data.kiosk_message || "Ready to start your session?");
 
           if (result.data.operating_hours && result.data.operating_hours.includes(" - ")) {
             const parts = result.data.operating_hours.split(" - ");
@@ -66,7 +66,6 @@ export default function SettingsPage() {
         console.error(err);
         setStatusMessage({ type: "error", text: "Something went wrong loading configuration elements." });
       } finally {
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         loading && setLoading(false);
       }
     }
@@ -86,6 +85,7 @@ export default function SettingsPage() {
         monthly_fee: monthlyFee,
         admin_password: adminPassword,
         theme_color: selectedColor, 
+        kiosk_message: kioskMessage,
       });
 
       if (response.success) {
@@ -119,6 +119,7 @@ export default function SettingsPage() {
         monthly_fee: monthlyFee,
         admin_password: adminPassword,
         theme_color: themeColor,
+        kiosk_message: kioskMessage,
       });
 
       if (response.success) {
@@ -137,9 +138,24 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="h-[60vh] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-brand" />
-        <p className="text-xs text-neutral-500 uppercase tracking-widest font-bold">Loading System Options...</p>
+      <div className="flex flex-col items-center justify-center gap-6 min-h-[60vh] w-full">
+        
+        <div className="relative flex items-center justify-center h-16 w-16">
+          <div className="absolute inset-0 bg-brand/20 blur-xl rounded-full animate-pulse" />
+          <div className="absolute inset-0 rounded-full border-[3px] border-neutral-800/80" />
+          <div className="absolute inset-0 rounded-full border-[3px] border-brand border-r-transparent border-b-transparent animate-spin" style={{ animationDuration: '1.5s' }} />
+          <Loader2 className="h-6 w-6 text-white animate-spin relative z-10" style={{ animationDuration: '1s', animationDirection: 'reverse' }} />
+        </div>
+        
+        <div className="flex flex-col items-center gap-1.5">
+          <h3 className="text-sm font-black text-white uppercase tracking-widest">
+            LOADING
+          </h3>
+          <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest animate-pulse">
+            Fetching records...
+          </p>
+        </div>
+        
       </div>
     );
   }
@@ -204,6 +220,29 @@ export default function SettingsPage() {
                   className="bg-transparent text-xs text-white font-bold outline-none scheme-dark cursor-pointer"
                 />
               </div>
+            </div>
+
+            {/* KIOSK MAIN HEADLINE FIELD */}
+            <div className="md:col-span-2">
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="flex items-center gap-1.5 text-[10px] uppercase font-black text-neutral-500 tracking-wider">
+                  <MessageSquare className="h-3 w-3" />
+                  Kiosk Main Headline
+                </label>
+                <span className={`text-[9px] font-bold tracking-wider ${
+                  kioskMessage.length >= MESSAGE_LIMIT ? "text-rose-400" : "text-neutral-600"
+                }`}>
+                  {kioskMessage.length} / {MESSAGE_LIMIT} MAX CHARS
+                </span>
+              </div>
+              <input 
+                type="text" 
+                maxLength={MESSAGE_LIMIT}
+                value={kioskMessage}
+                onChange={(e) => setKioskMessage(e.target.value)}
+                placeholder="READY TO CRUSH IT?"
+                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white font-black uppercase placeholder-neutral-600 focus:outline-none focus:border-brand/40 transition-colors"
+              />
             </div>
 
             {/* CURATED COLOR SWATCHES ROW */}
@@ -321,7 +360,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* SECURE FORM ACTION ACTION TRIGGER ROW */}
+        {/* SECURE FORM ACTION TRIGGER ROW */}
         <div className="flex justify-end pt-2">
           <button 
             type="submit"

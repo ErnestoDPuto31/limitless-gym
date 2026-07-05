@@ -9,7 +9,6 @@ export default async function ReportsAdminPage() {
 
   return (
     <div className="space-y-6">
-      {/* RENDER TOP CAPTION LAYOUT BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2.5xl font-black text-white uppercase tracking-wide">REPORTS</h1>
@@ -19,7 +18,6 @@ export default async function ReportsAdminPage() {
         </div>
       </div>
 
-      {/* DASHBOARD ENTRY VIEW ELEMENT */}
       <ReportDashboardClient initialData={data} />
     </div>
   );
