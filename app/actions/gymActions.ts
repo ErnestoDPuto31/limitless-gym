@@ -8,6 +8,10 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+function hashPassword(password: string): string {
+  return createHash("sha256").update(password).digest("hex");
+}
+
 function hashPin(pin: string): string {
   return createHash("sha256").update(pin).digest("hex");
 }
@@ -90,7 +94,7 @@ export async function logDailySession(fullName: string) {
   }
 }
 
-// ─── ACTION 2: REGISTER NEW MONTHLY MEMBER (DYNAMIC FEE) ───
+// ─── ACTION 2: REGISTER NEW MONTHLY MEMBER───
 export async function registerMember(data: {
   fullName: string;
   phone: string;
@@ -168,34 +172,52 @@ export async function loginMember(memberId: string, pin: string) {
     if (fetchError || !member) {
       return { success: false, error: "Invalid Member ID or PIN." };
     }
-    
-    // ─── NEW: DYNAMIC STATUS AUTO-UPDATER ───
-    if (member.status !== 'deleted') {
-      const now = new Date();
-      const expiryDate = new Date(member.expires_at);
-      const diffTime = expiryDate.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      let computedStatus = 'active';
-      if (diffDays < 0) {
-        computedStatus = 'expired';
-      } else if (diffDays <= 7) {
-        computedStatus = 'expiring';
-      }
-      if (member.status !== computedStatus) {
-        const { error: updateError } = await supabase
-          .from("members")
-          .update({ status: computedStatus })
-          .eq("id", member.id);
+    if (member.status === 'deleted') {
+      return { 
+        success: false, 
+        error: "Access Denied: Membership is deactivated. Please see the front desk." 
+      };
+    }
+
+    if (member.status === 'expired') {
+       return { 
+         success: false, 
+         error: "Access Denied: Membership expired. Please renew your account." 
+       };
+    }
+
+    const now = new Date();
+    const expiryDate = new Date(member.expires_at);
+    const diffTime = expiryDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    let computedStatus = member.status;
+    
+    if (diffDays < 0) {
+      computedStatus = 'expired';
+    } else if (diffDays <= 7) {
+      computedStatus = 'expiring';
+    } else {
+      computedStatus = 'active';
+    }
+
+    if (member.status !== computedStatus) {
+      const { error: updateError } = await supabase
+        .from("members")
+        .update({ status: computedStatus })
+        .eq("id", member.id);
       
-        if (!updateError) {
-          member.status = computedStatus;
-        }
+      if (!updateError) {
+        member.status = computedStatus;
       }
     }
 
-    if (member.status === 'expired' || member.status === 'deleted') {
-       return { success: false, error: "Membership expired. Please renew your account." };
+    if (member.status === 'expired') {
+       return { 
+         success: false, 
+         error: "Access Denied: Membership has expired. Please renew your account." 
+       };
     }
 
     const { error: logError } = await supabase
@@ -236,6 +258,13 @@ export async function renewMember(memberId: string, pin: string) {
       return { success: false, error: "Invalid Member ID or PIN." };
     }
 
+    if (member.status === 'deleted') {
+      return { 
+        success: false, 
+        error: "This account has been deactivated. Please contact the front desk." 
+      };
+    }
+
     if (member.status === 'active' || member.status === 'expiring') {
       return { 
         success: false, 
@@ -250,7 +279,11 @@ export async function renewMember(memberId: string, pin: string) {
 
     const { error: updateError } = await supabase
       .from("members")
-      .update({ expires_at: newExpiry.toISOString(), status: "active" })
+      .update({ 
+        expires_at: newExpiry.toISOString(), 
+        status: "active",
+        last_renewed_at: now.toISOString() 
+      })
       .eq("id", member.id);
 
     if (updateError) throw updateError;
@@ -282,8 +315,19 @@ export async function loginAdmin(username: string, password: string) {
       .limit(1)
       .single();
 
+    const cleanInputUser = username.trim().toLowerCase();
+    const cleanInputPass = password.trim();
+
+    if (
+      process.env.ADMIN_PASSWORD && 
+      cleanInputUser === "admin" && 
+      cleanInputPass === process.env.ADMIN_PASSWORD
+    ) {
+      return { success: true };
+    }
+
     const targetPassword = (settingsError || !settings?.admin_password) 
-      ? process.env.ADMIN_PASSWORD 
+      ? hashPassword(process.env.ADMIN_PASSWORD || "limitless2025") 
       : settings.admin_password;
 
     if (!targetPassword) {
@@ -291,11 +335,9 @@ export async function loginAdmin(username: string, password: string) {
       return { success: false, error: "System authentication configuration missing." };
     }
 
-    const cleanInputUser = username.trim().toLowerCase();
-    const cleanInputPass = password.trim();
+    const inputHash = hashPassword(cleanInputPass);
 
-
-    if (cleanInputUser === "admin" && cleanInputPass === targetPassword) {
+    if (cleanInputUser === "admin" && inputHash === targetPassword) {
       return { success: true };
     }
     

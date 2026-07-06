@@ -22,45 +22,85 @@ async function verifyAdminPassword(inputPassword: string): Promise<boolean> {
   return data.admin_password === inputPassword;
 }
 
-export async function getReportData(periodDays: number = 7) {
+const pad = (n: number) => n.toString().padStart(2, '0');
+const getLocalYYYYMMDD = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+export async function getReportData(params: number | { mode: string; monthValue?: string } = 7) {
   try {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - periodDays);
-    const cutoffIso = cutoffDate.toISOString();
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0); 
+    
+    let endDate = new Date();
+    endDate.setHours(23, 59, 59, 999); 
+    
+    let daysToGenerate = 7;
+
+    if (typeof params === "number") {
+      startDate.setDate(startDate.getDate() - (params - 1));
+      daysToGenerate = params;
+    } else {
+      if (params.mode === "month" && params.monthValue) {
+        const [year, m] = params.monthValue.split("-");
+        startDate = new Date(Number(year), Number(m) - 1, 1, 0, 0, 0, 0);
+        endDate = new Date(Number(year), Number(m), 0, 23, 59, 59, 999);
+        daysToGenerate = endDate.getDate();
+      } else {
+        const days = Number(params.mode) || 7;
+        startDate.setDate(startDate.getDate() - (days - 1));
+        daysToGenerate = days;
+      }
+    }
+
+    const startIso = startDate.toISOString();
+    const endIso = endDate.toISOString();
 
     const { data: members, error: mErr } = await supabase.from("members").select("status, id, full_name");
     if (mErr) throw mErr;
-
     const { data: payments, error: pErr } = await supabase
       .from("payments")
       .select("*, members(member_id)")
-      .gte("created_at", cutoffIso)
+      .gte("created_at", startIso)
+      .lte("created_at", endIso)
       .order("created_at", { ascending: false });
     if (pErr) throw pErr;
 
     const { data: logs, error: lErr } = await supabase
       .from("attendance_logs")
       .select("id, member_id, created_at, members(full_name)")
-      .gte("created_at", cutoffIso);
+      .gte("created_at", startIso)
+      .lte("created_at", endIso);
     if (lErr) throw lErr;
 
     const chartLabels: string[] = [];
     const revenueData: number[] = [];
     const loginsData: number[] = [];
 
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateString = d.toISOString().split("T")[0];
+    // Construct exactly matching days inside the target frame
+    for (let i = 0; i < daysToGenerate; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const dateString = getLocalYYYYMMDD(d);
+
+      const labelFormat: Intl.DateTimeFormatOptions = daysToGenerate <= 7 
+        ? { weekday: "short" } 
+        : { month: "short", day: "numeric" };
       
-      chartLabels.push(d.toLocaleDateString("en-US", { weekday: "short" }));
+      chartLabels.push(d.toLocaleDateString("en-US", labelFormat));
       
       const dailyRev = payments
-        ?.filter(p => p.created_at.startsWith(dateString))
+        ?.filter((p) => {
+           const pDate = new Date(p.created_at);
+           return getLocalYYYYMMDD(pDate) === dateString || p.created_at.startsWith(dateString);
+        })
         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
       revenueData.push(dailyRev);
 
-      const dailyLog = logs?.filter(l => l.created_at.startsWith(dateString)).length || 0;
+      const dailyLog = logs
+        ?.filter((l) => {
+           const lDate = new Date(l.created_at);
+           return getLocalYYYYMMDD(lDate) === dateString || l.created_at.startsWith(dateString);
+        })
+        .length || 0;
       loginsData.push(dailyLog);
     }
 
@@ -118,7 +158,6 @@ export async function bulkDeletePayments(passwordVerify: string) {
       return { success: false, error: "Authentication failed: Incorrect master password." };
     }
 
-    // Purge all records entirely
     const { error } = await supabase.from("payments").delete().neq("id", "00000000-0000-0000-0000-000000000000"); 
     if (error) throw error;
     

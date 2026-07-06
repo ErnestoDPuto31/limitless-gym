@@ -2,10 +2,15 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { createHash } from "crypto"; 
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+function hashPassword(password: string): string {
+  return createHash("sha256").update(password).digest("hex");
+}
 
 interface GymSettingsPayload {
   gym_name: string;
@@ -29,11 +34,11 @@ export async function getGymSettings() {
       if (error.code === "PGRST116") {
         const defaultData = {
           id: 1,
-          gym_name: "Limitless Gym",
+          gym_name: "IronPass System",
           operating_hours: "06:00 - 22:00",
           daily_fee: 150,
           monthly_fee: 1500,
-          admin_password: "limitless2025",
+          admin_password: hashPassword("ironpass2026"), 
           theme_color: "#DFFF00",
           kiosk_message: "READY TO CRUSH IT?"
         };
@@ -61,28 +66,33 @@ export async function updateGymSettings(payload: GymSettingsPayload) {
   try {
     if (!payload.gym_name.trim()) throw new Error("Gym name cannot be empty.");
     if (payload.daily_fee < 0 || payload.monthly_fee < 0) throw new Error("Prices cannot be negative numbers.");
-    if (!payload.admin_password.trim()) throw new Error("Password field cannot be blank.");
     if (payload.kiosk_message && payload.kiosk_message.length > 80) {
       throw new Error("Kiosk broadcast message cannot exceed 80 characters.");
     }
 
+    const updateData: Partial<GymSettingsPayload> & { updated_at: string } = {
+      gym_name: payload.gym_name,
+      operating_hours: payload.operating_hours,
+      daily_fee: payload.daily_fee,
+      monthly_fee: payload.monthly_fee,
+      theme_color: payload.theme_color,
+      kiosk_message: payload.kiosk_message,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (payload.admin_password && payload.admin_password.trim() !== "") {
+      updateData.admin_password = hashPassword(payload.admin_password.trim());
+    }
+
     const { data, error } = await supabase
       .from("gym_settings")
-      .update({
-        gym_name: payload.gym_name,
-        operating_hours: payload.operating_hours,
-        daily_fee: payload.daily_fee,
-        monthly_fee: payload.monthly_fee,
-        admin_password: payload.admin_password,
-        theme_color: payload.theme_color,
-        kiosk_message: payload.kiosk_message,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", 1)
       .select()
       .single();
 
     if (error) throw error;
+    
     revalidatePath("/"); 
     revalidatePath("/admin");
     revalidatePath("/admin/settings");

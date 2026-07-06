@@ -31,9 +31,68 @@ export default function MemberFilters({
     full_name: "",
     phone: "",
     emergency_phone: "",
-    status: "active",
-    expires_at: "",
+    pin: "",
   });
+
+  // ─── DATE OF BIRTH SEGMENTED STATES ───
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobDay, setDobDay] = useState("");
+  const [dobYear, setDobYear] = useState("");
+
+  // ─── EXPIRATION DATE SEGMENTED STATES ───
+  const [expMonth, setExpMonth] = useState("");
+  const [expDay, setExpDay] = useState("");
+  const [expYear, setExpYear] = useState("");
+
+  // DOB Auto-advance handlers
+  const handleDobMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "");
+    setDobMonth(val);
+    if (val.length === 2) document.getElementById("add-dob-day")?.focus();
+  };
+
+  const handleDobDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "");
+    setDobDay(val);
+    if (val.length === 2) document.getElementById("add-dob-year")?.focus();
+  };
+
+  const handleDobDayKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !dobDay) {
+      document.getElementById("add-dob-month")?.focus();
+    }
+  };
+
+  const handleDobYearKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !dobYear) {
+      document.getElementById("add-dob-day")?.focus();
+    }
+  };
+
+  // Expiration Date Auto-advance handlers
+  const handleExpMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "");
+    setExpMonth(val);
+    if (val.length === 2) document.getElementById("add-exp-day")?.focus();
+  };
+
+  const handleExpDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "");
+    setExpDay(val);
+    if (val.length === 2) document.getElementById("add-exp-year")?.focus();
+  };
+
+  const handleExpDayKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !expDay) {
+      document.getElementById("add-exp-month")?.focus();
+    }
+  };
+
+  const handleExpYearKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !expYear) {
+      document.getElementById("add-exp-day")?.focus();
+    }
+  };
 
   const updateFilters = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -51,30 +110,65 @@ export default function MemberFilters({
       setError("Full name is required.");
       return;
     }
+    if (formData.pin && formData.pin.length !== 4) {
+      setError("PIN must be exactly 4 digits.");
+      return;
+    }
+
     setIsProcessing(true);
     setError("");
     
-    // Concatenate the +63 prefix before sending to database (if they typed a number)
     const formattedPhone = formData.phone.trim() ? `+63${formData.phone.trim()}` : "";
     const formattedEmergency = formData.emergency_phone.trim() ? `+63${formData.emergency_phone.trim()}` : "";
 
+    // Construct Native JS Date for Date of Birth
+    const formattedDob = (dobYear && dobMonth && dobDay)
+      ? new Date(Number(dobYear), Number(dobMonth) - 1, Number(dobDay))
+      : null;
+
+    // Calculate Status & Expiration Date
+    let computedStatus = "active";
+    let formattedExpiresAt = null;
+
+    if (expYear && expMonth && expDay) {
+      const expDate = new Date(Number(expYear), Number(expMonth) - 1, Number(expDay));
+      formattedExpiresAt = expDate.toISOString();
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalize to start of day
+
+      const diffTime = expDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        computedStatus = "expired";
+      } else if (diffDays <= 7) {
+        computedStatus = "expiring";
+      }
+    }
+
     const res = await createNewMember({
       ...formData,
+      status: computedStatus,
       phone: formattedPhone,
       emergency_phone: formattedEmergency,
-      expires_at: formData.expires_at || null
+      expires_at: formattedExpiresAt,
+      date_of_birth: formattedDob,
+      pin: formData.pin || undefined,
     });
 
     if (res.success) {
       setIsAddOpen(false);
-      setFormData({ full_name: "", phone: "", emergency_phone: "", status: "active", expires_at: "" });
+      setFormData({ full_name: "", phone: "", emergency_phone: "", pin: "" });
+      setDobMonth(""); setDobDay(""); setDobYear("");
+      setExpMonth(""); setExpDay(""); setExpYear("");
     } else {
       setError(res.error || "Failed to add member.");
     }
     setIsProcessing(false);
   };
 
-    useEffect(() => {
+  useEffect(() => {
     const delayDebounce = setTimeout(() => {
       if (search !== currentSearch) {
         updateFilters({ search });
@@ -90,7 +184,7 @@ export default function MemberFilters({
         <span className="text-[10px] uppercase tracking-widest font-black text-neutral-400">Manage Members</span>
         <button
           onClick={() => setIsAddOpen(true)}
-          className="h-10 bg-red-500 hover:bg-red-600 text-white font-black text-xs uppercase tracking-wider px-4 rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-red-500/10"
+          className="h-10 bg-(--theme-color) hover:bg-(--theme-color)/80 text-white font-black text-xs uppercase tracking-wider px-4 rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-(--theme-color)/10"
         >
           <UserPlus className="h-4 w-4" />
           Add Member
@@ -184,9 +278,47 @@ export default function MemberFilters({
                   required
                   value={formData.full_name} 
                   onChange={e => setFormData({...formData, full_name: e.target.value})}
-                  placeholder="e.g. Ernest Victor V. Agalo"
+                  placeholder="Juan Dela Cruz"
                   className="w-full h-11 bg-neutral-900 border border-neutral-800 rounded-xl px-4 text-xs font-semibold text-white outline-none focus:border-neutral-700 transition-colors" 
                 />
+              </div>
+
+              {/* SEGMENTED DOB INPUT */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-black uppercase text-neutral-400 tracking-widest">Date of Birth</label>
+                <div className="flex items-center px-4 h-11 rounded-xl bg-neutral-900 border border-neutral-800 focus-within:border-neutral-700 transition-colors">
+                  <input 
+                    id="add-dob-month"
+                    type="text" 
+                    placeholder="MM"
+                    maxLength={2}
+                    value={dobMonth}
+                    onChange={handleDobMonthChange}
+                    className="w-8 bg-transparent text-white placeholder-neutral-600 text-xs font-semibold outline-none text-center"
+                  />
+                  <span className="text-neutral-600 font-bold mx-1">/</span>
+                  <input 
+                    id="add-dob-day"
+                    type="text" 
+                    placeholder="DD"
+                    maxLength={2}
+                    value={dobDay}
+                    onChange={handleDobDayChange}
+                    onKeyDown={handleDobDayKeyDown}
+                    className="w-8 bg-transparent text-white placeholder-neutral-600 text-xs font-semibold outline-none text-center"
+                  />
+                  <span className="text-neutral-600 font-bold mx-1">/</span>
+                  <input 
+                    id="add-dob-year"
+                    type="text" 
+                    placeholder="YYYY"
+                    maxLength={4}
+                    value={dobYear}
+                    onChange={(e) => setDobYear(e.target.value.replace(/\D/g, ""))}
+                    onKeyDown={handleDobYearKeyDown}
+                    className="w-12 bg-transparent text-white placeholder-neutral-600 text-xs font-semibold outline-none text-center"
+                  />
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -217,27 +349,53 @@ export default function MemberFilters({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black uppercase text-neutral-400 tracking-widest">Status</label>
-                  <select 
-                    value={formData.status} 
-                    onChange={e => setFormData({...formData, status: e.target.value})}
-                    className="w-full h-11 bg-neutral-900 border border-neutral-800 text-white font-semibold text-xs rounded-xl px-3 outline-none focus:border-neutral-700 transition-all cursor-pointer"
-                  >
-                    <option value="active">Active</option>
-                    <option value="expiring">Expiring</option>
-                    <option value="expired">Expired</option>
-                  </select>
-                </div>
+              {/* 4-DIGIT PIN INPUT FIELD */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-black uppercase text-neutral-400 tracking-widest">4-Digit PIN</label>
+                <input 
+                  type="text" 
+                  maxLength={4}
+                  value={formData.pin}
+                  onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, "")})}
+                  placeholder="••••"
+                  className="w-full h-11 bg-neutral-900 border border-neutral-800 rounded-xl px-4 text-center text-xs font-bold text-white tracking-widest outline-none focus:border-neutral-700 transition-colors"
+                />
+              </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black uppercase text-neutral-400 tracking-widest">Expiration Date</label>
+              {/* SEGMENTED EXPIRATION DATE INPUT */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-black uppercase text-neutral-400 tracking-widest">Expiration Date</label>
+                <div className="flex items-center px-4 h-11 rounded-xl bg-neutral-900 border border-neutral-800 focus-within:border-neutral-700 transition-colors">
                   <input 
-                    type="date" 
-                    value={formData.expires_at} 
-                    onChange={e => setFormData({...formData, expires_at: e.target.value})}
-                    className="w-full h-11 bg-neutral-900 border border-neutral-800 rounded-xl px-4 text-xs font-semibold text-white outline-none focus:border-neutral-700 transition-colors colors-white dark:scheme-dark" 
+                    id="add-exp-month"
+                    type="text" 
+                    placeholder="MM"
+                    maxLength={2}
+                    value={expMonth}
+                    onChange={handleExpMonthChange}
+                    className="w-8 bg-transparent text-white placeholder-neutral-600 text-xs font-semibold outline-none text-center"
+                  />
+                  <span className="text-neutral-600 font-bold mx-1">/</span>
+                  <input 
+                    id="add-exp-day"
+                    type="text" 
+                    placeholder="DD"
+                    maxLength={2}
+                    value={expDay}
+                    onChange={handleExpDayChange}
+                    onKeyDown={handleExpDayKeyDown}
+                    className="w-8 bg-transparent text-white placeholder-neutral-600 text-xs font-semibold outline-none text-center"
+                  />
+                  <span className="text-neutral-600 font-bold mx-1">/</span>
+                  <input 
+                    id="add-exp-year"
+                    type="text" 
+                    placeholder="YYYY"
+                    maxLength={4}
+                    value={expYear}
+                    onChange={(e) => setExpYear(e.target.value.replace(/\D/g, ""))}
+                    onKeyDown={handleExpYearKeyDown}
+                    className="w-12 bg-transparent text-white placeholder-neutral-600 text-xs font-semibold outline-none text-center"
                   />
                 </div>
               </div>
@@ -245,7 +403,7 @@ export default function MemberFilters({
               <button 
                 type="submit"
                 disabled={isProcessing}
-                className="w-full h-11 mt-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer"
+                className="w-full h-11 mt-2 bg-(--theme-color) hover:bg-(--theme-color)/80 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer"
               >
                 {isProcessing ? "Saving..." : "Add Member"}
               </button>

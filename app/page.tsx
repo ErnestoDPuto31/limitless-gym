@@ -68,6 +68,7 @@ export default function CheckInPage () {
   // ─── INPUT FIELDS STATES ───
   const [loginMemberId, setLoginMemberId] = useState("");
   const [loginPin, setLoginPin] = useState("");
+  const [loggedInMemberName, setLoggedInMemberName] = useState("")
 
   const [registerName, setRegisterName] = useState("");
   const [registerPhone, setRegisterPhone] = useState("");
@@ -230,7 +231,6 @@ const handleDailySubmit = async () => {
   }
 };
 
-/// ─── SUBMIT ACTION: MONTHLY LOG IN ───
 const handleMonthlyLoginSubmit = async () => {
   if (isSubmitting) return;
 
@@ -257,6 +257,7 @@ const handleMonthlyLoginSubmit = async () => {
     setSuccessMode("logged_in");
     setMemberStatus(result.member.status); 
     setExpiresAt(result.member.expires_at);
+    setLoggedInMemberName(result.member.full_name); 
     
     if (result.member.expires_at) {
       const expiryDate = new Date(result.member.expires_at);
@@ -279,6 +280,8 @@ const handleMonthlyLoginSubmit = async () => {
       setMemberStatus(""); 
       setExpiresAt("");
       setDaysRemaining(null); 
+      setLoggedInMemberName(""); 
+      
       setIsSubmitting(false);
     }, displayTime);
 
@@ -791,9 +794,12 @@ const handleMonthlyRenewSubmit = async () => {
                   
                   {successMode === "logged_in" && (
                     <>
-                      <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">ACCESS GRANTED</h3>
+                      <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">
+                        ACCESS GRANTED
+                      </h3>
                       <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">
-                        ID <span className="text-(--theme-color) font-bold">LMT-{loginMemberId}</span> verified successfully.<br />Welcome back to Limitless Fitness Gym!
+                        Welcome back, <span className="text-(--theme-color) font-bold">{loggedInMemberName || `LMT-${loginMemberId}`}</span>!<br />
+                        Enjoy your workout at Limitless Fitness.
                       </p>
                       
                       {/* EXPIRING SOON NOTICE */}
@@ -844,10 +850,14 @@ const handleMonthlyRenewSubmit = async () => {
 
                   {successMode === "renewed" && (
                     <>
-                      <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">RENEWAL SUCCESSFUL</h3>
-                      <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">Account <span className="text-(--theme-color) font-bold">LMT-{renewMemberId}</span> extended for another 30 days.<br />Your status is active.</p>
-                    </>
-                  )}
+                    <h3 className="text-neutral-100 text-2xl font-black uppercase tracking-tight mb-1.5 font-montserrat">
+                      RENEWAL SUCCESSFUL
+                    </h3>
+                    <p className="text-muted-foreground text-sm font-medium px-4 leading-relaxed">
+                      <span className="text-(--theme-color) font-bold">{loggedInMemberName || `LMT-${renewMemberId}`}</span> has been extended for another 30 days.<br />Your status is active.
+                    </p>
+                  </>
+                )}
                 </div>
               )}
             </div>

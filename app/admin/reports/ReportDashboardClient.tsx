@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Calendar, Download, ArrowUpDown, ShieldAlert, Trash2, X, AlertOctagon, ChevronLeft, ChevronRight } from "lucide-react";
-import { deletePaymentRecord, bulkDeletePayments } from "@/app/actions/reportActions";
+import React, { useState, useMemo, useEffect } from "react";
+import { Calendar, Download, ArrowUpDown, ShieldAlert, Trash2, X, AlertOctagon, ChevronLeft, ChevronRight, Loader2, Filter } from "lucide-react";
+import { deletePaymentRecord, bulkDeletePayments, getReportData } from "@/app/actions/reportActions";
 
-// ─── TYPESCRIPT INTERFACES ───
 export interface PaymentRecord {
   id: string;
   payer_name: string;
@@ -28,7 +27,6 @@ export interface ReportData {
 
 type ModalState = "hard" | "hard_all" | null;
 
-// ─── HELPER FORMATTER ───
 const formatTxType = (type: string) => {
   const normalized = type.toLowerCase().trim();
   if (normalized === "walk_in" || normalized === "walk in") return "WALK IN";
@@ -38,11 +36,19 @@ const formatTxType = (type: string) => {
 };
 
 export default function ReportDashboardClient({ initialData }: { initialData: ReportData }) {
-  const [period, setPeriod] = useState<number>(7);
+  const [reportMode, setReportMode] = useState<"7" | "30" | "month">("7");
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [txFilter, setTxFilter] = useState<string>("ALL");
+
+  const [reportData, setReportData] = useState<ReportData>(initialData);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   const [sortBy, setSortBy] = useState<"date" | "amount" | "name">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   
-  // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
   
@@ -52,18 +58,61 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  // ─── AGGREGATE TOTALS ───
+  const todayLabel = useMemo(() => {
+    const d = new Date();
+    
+    if (reportMode === "7") {
+      return d.toLocaleDateString("en-US", { weekday: "short" });
+    }
+    
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }, [reportMode]);
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    async function refreshPeriodData() {
+      setIsLoading(true);
+      try {
+        const payload = reportMode === "month" 
+          ? { mode: "month", monthValue: selectedMonth } 
+          : { mode: reportMode };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updated = await getReportData(payload as any);
+        if (updated.success && isMounted) {
+          setReportData(updated as unknown as ReportData);
+          setCurrentPage(1);
+        }
+      } catch (err) {
+        console.error("Failed loading data frame sync window", err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    refreshPeriodData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [reportMode, selectedMonth]);
+
   const totalRevenue = useMemo(() => 
-    initialData.chartData.revenue.reduce((sum, current) => sum + current, 0), 
-  [initialData.chartData.revenue]);
+    (reportData?.chartData?.revenue || []).reduce((sum, current) => sum + current, 0), 
+  [reportData?.chartData?.revenue]);
 
   const totalLogins = useMemo(() => 
-    initialData.chartData.logins.reduce((sum, current) => sum + current, 0), 
-  [initialData.chartData.logins]);
+    (reportData?.chartData?.logins || []).reduce((sum, current) => sum + current, 0), 
+  [reportData?.chartData?.logins]);
 
-  // ─── SORTING LOGIC ───
   const processedPayments = useMemo(() => {
-    const list = [...initialData.payments];
+    let list = [...(reportData?.payments || [])];
+
+    if (txFilter !== "ALL") {
+      list = list.filter((p) => formatTxType(p.tx_type) === txFilter);
+    }
+
     list.sort((a, b) => {
       if (sortBy === "date") {
         return sortOrder === "desc" 
@@ -79,7 +128,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
       return 0;
     });
     return list;
-  }, [initialData.payments, sortBy, sortOrder]);
+  }, [reportData?.payments, sortBy, sortOrder, txFilter]);
 
   const toggleSort = (field: "date" | "amount" | "name") => {
     setCurrentPage(1);
@@ -90,44 +139,63 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
       setSortOrder("desc"); 
     }
   };
-  // ─── PAGINATION LOGIC ───
+
   const totalPages = Math.ceil(processedPayments.length / itemsPerPage);
   const paginatedPayments = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return processedPayments.slice(start, start + itemsPerPage);
   }, [processedPayments, currentPage]);
 
-  // ─── CSV EXPORT WITH TOTALS ───
   const exportToCSV = () => {
-    const headers = ["Transaction ID", "Member ID", "Name", "Transaction Type", "Amount (₱)", "Timestamp"];
-    const rows = processedPayments.map((p) => [
-      p.id,
-      p.members?.member_id || "N/A",
-      p.payer_name,
-      formatTxType(p.tx_type),
-      p.amount.toString(),
-      new Date(p.created_at).toLocaleString(),
-    ]);
+    let periodText = reportMode === "7" ? "Last 7 Days" : "Last 30 Days";
+    if (reportMode === "month") {
+      periodText = `Specific Month (${selectedMonth})`;
+    }
 
-    const summaryRows = [
-      ["", "", "", "", "", ""],
-      ["--- SUMMARY DATA ---", "", "", "", "", ""],
-      ["Total Period Revenue:", "", "", "", `₱ ${totalRevenue}`, ""],
-      ["Total Period Logins:", "", "", "", `${totalLogins} logins`, ""]
+    const escapeCSV = (val: string) => {
+      if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    };
+
+    const csvRows = [
+      ["--- EXECUTIVE REPORT SUMMARY ---"],
+      ["Report Title", "Gym Financial & Traffic Ledger Matrix"],
+      ["Report Period", periodText],
+      ["Active Data Filter", txFilter],
+      ["TOTAL LOGINS (PERIOD)", `${totalLogins} check-ins`],
+      ["TOTAL REVENUE (PERIOD)", `PHP ${totalRevenue.toLocaleString()}`],
+      [], 
+      ["--- AUDIT DATA TRAIL ---"],
+      ["TRANSACTION ID", "MEMBER ID", "PAYER NAME", "TRANSACTION TYPE", "AMOUNT (PHP)", "TIMESTAMP"]
     ];
 
-    const csvContent = [headers, ...rows, ...summaryRows].map((e) => e.join(",")).join("\n");
+    processedPayments.forEach((p) => {
+      csvRows.push([
+        escapeCSV(p.id),
+        escapeCSV(p.members?.member_id || "WALK-IN / N/A"),
+        escapeCSV(p.payer_name),
+        escapeCSV(formatTxType(p.tx_type)),
+        p.amount.toString(),
+        escapeCSV(new Date(p.created_at).toLocaleString())
+      ]);
+    });
+
+    const csvContent = csvRows.map((e) => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Gym_Financial_Ledger_${period}_Days.csv`);
+    
+    const fileSuffix = reportMode === "month" ? selectedMonth : `${reportMode}_Days`;
+    link.setAttribute("download", `Gym_Ledger_${fileSuffix}_${txFilter.replace(/\s+/g, '_')}.csv`);
+    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // ─── ACTION EXECUTION ───
   const executeAction = async () => {
     setIsProcessing(true);
     setErrorMessage("");
@@ -147,135 +215,235 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
     setIsProcessing(false);
   };
 
-  // ─── CHART MATH MODEL ───
-  const maxRevenue = Math.max(...initialData.chartData.revenue, 1000); 
-  const maxLogins = Math.max(...initialData.chartData.logins, 10); 
+  const maxRevenue = Math.max(...(reportData?.chartData?.revenue || []), 1000); 
+  const maxLogins = Math.max(...(reportData?.chartData?.logins || []), 10); 
 
-  const generateRobustLinePoints = (data: number[], max: number) => {
+  const linePoints = useMemo(() => {
+    const data = reportData?.chartData?.logins || [];
     if (data.length === 0) return "";
+    const n = data.length;
     return data.map((val, i) => {
-      const x = (i / (data.length - 1)) * 100;
-      const y = 100 - (val / max) * 100;
+      const x = ((i + 0.5) / n) * 100;
+      const y = 90 - (val / maxLogins) * 80; 
       return `${x},${y}`;
     }).join(" ");
-  };
-  const loginPoints = generateRobustLinePoints(initialData.chartData.logins, maxLogins);
+  }, [reportData?.chartData?.logins, maxLogins]);
+
+  const polygonPoints = useMemo(() => {
+    const n = (reportData?.chartData?.logins || []).length;
+    if (n === 0) return "";
+    const firstX = (0.5 / n) * 100;
+    const lastX = ((n - 0.5) / n) * 100;
+    return `${firstX},90 ${linePoints} ${lastX},90`;
+  }, [linePoints, reportData?.chartData?.logins]);
 
   return (
-    <div className="space-y-6 font-inter text-foreground">
+    <div className="space-y-6 font-inter text-foreground relative">
       
-      {/* HEADER CONTROLS */}
-      <div className="bg-card border border-border rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-(--theme-color)" />
-          <select 
-            value={period} 
-            onChange={(e) => setPeriod(Number(e.target.value))}
-            className="bg-background border border-border rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider outline-none text-foreground focus:border-(--theme-color)/40"
-          >
-            <option value={7}>Last 7 Days (Weekly)</option>
-          </select>
+      {/* LOADING OVERLAY SCREEN */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-background/60 backdrop-blur-4px z-50 flex items-center justify-center transition-all">
+          <div className="bg-card border border-border px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-(--theme-color)" />
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Updating Registry Query Frame...</span>
+          </div>
+        </div>
+      )}
+
+      {/* HEADER CONTROLS - SPLIT LAYOUT */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        
+        {/* Filter and Period Group (Primary Card) */}
+        <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap items-center gap-3 flex-1 shadow-sm">
+          {/* Time Picker */}
+          <div className="flex items-center gap-2 bg-neutral-900/60 border border-border rounded-xl px-4 py-2 hover:border-(--theme-color)/50 focus-within:border-(--theme-color) focus-within:ring-1 focus-within:ring-(--theme-color)/30 transition-all shadow-sm">
+            <Calendar className="h-4 w-4 shrink-0" style={{ color: "var(--theme-color)" }} />
+            <select 
+              value={reportMode} 
+              onChange={(e) => setReportMode(e.target.value as "7" | "30" | "month")}
+              className="bg-transparent text-xs font-black uppercase tracking-widest outline-none text-foreground cursor-pointer appearance-auto"
+            >
+              <option value="7" className="bg-neutral-900 text-foreground font-semibold">Last 7 Days</option>
+              <option value="30" className="bg-neutral-900 text-foreground font-semibold">Last 30 Days</option>
+              <option value="month" className="bg-neutral-900 text-foreground font-semibold">Specific Month</option>
+            </select>
+            
+            {reportMode === "month" && (
+              <div className="flex items-center pl-3 border-l border-border/60 ml-1">
+                <input 
+                  type="month" 
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  style={{ colorScheme: "dark" }}
+                  className="bg-transparent text-xs font-black uppercase tracking-widest outline-none text-foreground cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* TX Filter */}
+          <div className="flex items-center gap-2 bg-neutral-900/60 border border-border rounded-xl px-4 py-2 hover:border-(--theme-color)/50 focus-within:border-(--theme-color) focus-within:ring-1 focus-within:ring-(--theme-color)/30 transition-all shadow-sm">
+            <Filter className="h-4 w-4 shrink-0" style={{ color: "var(--theme-color)" }} />
+            <select 
+              value={txFilter} 
+              onChange={(e) => { setTxFilter(e.target.value); setCurrentPage(1); }}
+              className="bg-transparent text-xs font-black uppercase tracking-widest outline-none text-foreground cursor-pointer appearance-auto"
+            >
+              <option value="ALL" className="bg-neutral-900 text-foreground font-semibold">All Transactions</option>
+              <option value="WALK IN" className="bg-neutral-900 text-foreground font-semibold">Walk Ins Only</option>
+              <option value="REGISTRATION" className="bg-neutral-900 text-foreground font-semibold">Registrations Only</option>
+              <option value="RENEWAL" className="bg-neutral-900 text-foreground font-semibold">Renewals Only</option>
+            </select>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        {/* ACTIONS CARD */}
+        <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3 w-full lg:w-auto shadow-sm">
           <button 
             onClick={exportToCSV}
-            className="flex items-center gap-2 bg-(--theme-color) hover:opacity-90 text-(--theme-color)-foreground font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+            className="flex-1 lg:flex-none flex items-center justify-center gap-2 hover:opacity-90 font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-md"
+            style={{ backgroundColor: "var(--theme-color)", color: "var(--theme-color)-foreground" }}
           >
-            <Download className="h-3.5 w-3.5" /> Export to CSV
+            <Download className="h-3.5 w-3.5" /> Export
           </button>
           <button 
             onClick={() => setModalMode("hard_all")}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-destructive/10 hover:bg-destructive/20 border border-destructive/20 text-destructive font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+            className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-destructive/10 hover:bg-destructive/20 border border-destructive/20 text-destructive font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-sm"
           >
-            <AlertOctagon className="h-3.5 w-3.5" /> Purge All
+            <AlertOctagon className="h-3.5 w-3.5" /> Purge
           </button>
         </div>
       </div>
 
+      {/* CHARTS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
         {/* REVENUE HISTOGRAM */}
-        <div className="bg-card border border-border rounded-2xl p-6 relative flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h4 className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">Real-Time Daily Revenue</h4>
+        <div className="bg-card border border-border rounded-2xl p-4 relative flex flex-col justify-between h-100 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">Daily Revenue</h4>
             <div className="text-right">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Amount</span>
-              <span className="text-lg font-black text-(--theme-color) font-mono leading-none">₱ {totalRevenue.toLocaleString()}</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block">Total</span>
+              <span className="text-base font-black font-mono leading-none" style={{ color: "var(--theme-color)" }}>₱ {totalRevenue.toLocaleString()}</span>
             </div>
           </div>
-          <div className="flex-1 flex items-end justify-between gap-2 pt-4 px-2 min-h-40">
-            {initialData.chartData.revenue.map((val, idx) => (
-              <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
-                <div className="text-[10px] font-mono font-bold text-(--theme-color) opacity-0 group-hover:opacity-100 transition-opacity mb-1 bg-background/80 px-1.5 py-0.5 rounded border border-border">
-                  ₱{val}
+          
+          <div className="flex-1 flex items-end justify-between pt-2 px-1 h-80 w-full">
+            {(reportData?.chartData?.revenue || []).map((val, idx) => {
+              const isToday = reportData?.chartData?.labels[idx] === todayLabel;
+              
+              return (
+                <div key={idx} className="flex-1 flex flex-col items-center group h-full justify-end relative px-0.5">
+                  {val > 0 && (
+                    <div className="text-[9px] font-mono font-bold opacity-0 group-hover:opacity-100 transition-opacity mb-1 bg-background/95 px-1.5 py-0.5 rounded border border-border pointer-events-none absolute z-15 bottom-[105%] whitespace-nowrap shadow-xl" style={{ color: isToday ? "#f59e0b" : "var(--theme-color)" }}>
+                      ₱{val.toLocaleString()}
+                    </div>
+                  )}
+                  <div 
+                    style={{ 
+                      height: val === 0 ? "2px" : `${(val / maxRevenue) * 100}%`,
+                      backgroundColor: val === 0 ? "#262626" : (isToday ? "#f59e0b" : "var(--theme-color)"),
+                      boxShadow: isToday && val > 0 ? "0 0 10px rgba(245, 158, 11, 0.4)" : "none"
+                    }} 
+                    className="w-full rounded-t-xs transition-all duration-300 hover:brightness-110"
+                  />
                 </div>
-                <div 
-                  style={{ height: `${Math.max((val / maxRevenue) * 100, 2)}%` }} 
-                  className="w-full bg-(--theme-color) rounded-sm transition-all duration-700 hover:opacity-80 relative"
-                />
-                <span className="text-[10px] text-muted-foreground font-semibold mt-2">
-                  {initialData.chartData.labels[idx]}
+              );
+            })}
+          </div>
+
+          <div className="flex justify-between border-t border-neutral-800/60 pt-2 mt-2 text-[8px] text-muted-foreground font-semibold tracking-wider uppercase px-1">
+            {(reportData?.chartData?.labels || []).map((day, i) => {
+              const len = (reportData?.chartData?.labels || []).length;
+              const isToday = day === todayLabel;
+              const isHidden = !isToday && (len > 7 && i % Math.ceil(len / 5) !== 0 && i !== len - 1);
+              
+              return (
+                <span 
+                  key={i} 
+                  className={`${isHidden ? "hidden" : "block"} ${isToday ? "bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/40 font-black -mt-0.5 z-10" : ""}`}
+                >
+                  {isToday ? "TODAY" : day}
                 </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* LOGINS LINE CHART */}
-        <div className="bg-card border border-border rounded-2xl p-6 relative flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h4 className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">Real-Time Daily Logins</h4>
+        <div className="bg-card border border-border rounded-2xl p-4 relative flex flex-col justify-between h-100 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">Daily Traffic</h4>
             <div className="text-right">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Logins</span>
-              <span className="text-lg font-black text-(--theme-color) font-mono leading-none">{totalLogins} <span className="text-xs text-muted-foreground">LOGINS</span></span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block">Total</span>
+              <span className="text-base font-black font-mono leading-none" style={{ color: "var(--theme-color)" }}>{totalLogins} <span className="text-[9px] text-muted-foreground">LOGINS</span></span>
             </div>
           </div>
-          <div className="flex-1 relative pt-4 min-h-40 pb-6">
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-[calc(100%-24px)] overflow-visible">
-              <polygon
-                points={`0,100 ${loginPoints} 100,100`}
-                fill="var(--theme-color, #DFFF00)"
-                className="opacity-10 transition-all duration-700"
-              />
-              <polyline
-                points={loginPoints}
-                fill="none"
-                stroke="var(--theme-color, #DFFF00)"
-                strokeWidth="2"
-                className="opacity-90 transition-all duration-700"
-                vectorEffect="non-scaling-stroke"
-              />
-              {initialData.chartData.logins.map((val, i) => {
-                const x = (i / (initialData.chartData.logins.length - 1)) * 100;
-                const y = 100 - (val / maxLogins) * 100;
+        
+          <div className="flex-1 relative h-80 pt-2 px-1 w-full">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+              {polygonPoints && (
+                <polygon
+                  points={polygonPoints}
+                  fill="var(--theme-color)"
+                  className="opacity-[0.04] transition-all duration-500"
+                />
+              )}
+              {linePoints && (
+                <polyline
+                  points={linePoints}
+                  fill="none"
+                  stroke="var(--theme-color)"
+                  strokeWidth="2"
+                  className="opacity-95 transition-all duration-500"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+              
+              {/* "TODAY" SVG OVERLAY MARKERS */}
+              {(reportData?.chartData?.logins || []).map((val, i) => {
+                const isToday = reportData?.chartData?.labels[i] === todayLabel;
+                if (!isToday) return null;
+                
+                const n = (reportData?.chartData?.logins || []).length;
+                const x = ((i + 0.5) / n) * 100;
+                const y = 90 - (val / maxLogins) * 80;
+                
                 return (
-                  <g key={i} className="group">
-                    <circle 
-                      cx={x} 
-                      cy={y} 
-                      r="1.5" 
-                      fill="var(--color-background, #161616)" 
-                      stroke="var(--theme-color, #DFFF00)" 
-                      strokeWidth="1" 
-                      vectorEffect="non-scaling-stroke" 
-                      className="transition-all duration-300" 
-                    />
+                  <g key={`today-marker-${i}`}>
+                    <line x1={x} y1="0" x2={x} y2="100" stroke="#f59e0b" strokeWidth="0.5" strokeDasharray="2,2" className="opacity-60" vectorEffect="non-scaling-stroke" />
+                    <circle cx={x} cy={y} r="2" fill="#f59e0b" className="animate-pulse" vectorEffect="non-scaling-stroke" />
+                    <circle cx={x} cy={y} r="0.75" fill="#ffffff" vectorEffect="non-scaling-stroke" />
                   </g>
                 );
               })}
             </svg>
-            <div className="absolute bottom-0 left-0 right-0 flex justify-between px-1 text-[10px] text-muted-foreground font-semibold">
-              {initialData.chartData.labels.map((day, i) => <span key={i}>{day}</span>)}
-            </div>
+          </div>
+
+          <div className="flex justify-between border-t border-neutral-800/60 pt-2 mt-2 text-[8px] text-muted-foreground font-semibold tracking-wider uppercase px-1">
+            {(reportData?.chartData?.labels || []).map((day, i) => {
+              const len = (reportData?.chartData?.labels || []).length;
+              const isToday = day === todayLabel;
+              const isHidden = !isToday && (len > 7 && i % Math.ceil(len / 5) !== 0 && i !== len - 1);
+              
+              return (
+                <span 
+                  key={i} 
+                  className={`${isHidden ? "hidden" : "block"} ${isToday ? "bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/40 font-black -mt-0.5 z-10" : ""}`}
+                >
+                  {isToday ? "TODAY" : day}
+                </span>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* TRANSACTION LEDGER TABLE WITH PAGINATION */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+      <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col shadow-sm">
         <div className="p-4 bg-background/20 border-b border-border flex justify-between items-center">
           <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Financial Audit Ledger Trail</h3>
-          <span className="text-[10px] font-bold text-(#FFFFFF) bg-(--theme-color) px-2 py-1 rounded-md border border-border">
+          <span className="text-[10px] font-bold text-foreground bg-neutral-800 px-2 py-1 rounded-md border border-border">
             Total Records: {processedPayments.length}
           </span>
         </div>
@@ -284,14 +452,14 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border bg-background/50 text-[10px] uppercase font-black tracking-widest text-muted-foreground">
-                <th className="py-4 px-6 cursor-pointer hover:text-foreground" onClick={() => toggleSort("name")}>
+                <th className="py-4 px-6 cursor-pointer hover:text-foreground select-none" onClick={() => toggleSort("name")}>
                   Name & ID <ArrowUpDown className="inline h-3 w-3 ml-1" />
                 </th>
                 <th className="py-4 px-6">Method Block</th>
-                <th className="py-4 px-6 cursor-pointer hover:text-foreground" onClick={() => toggleSort("amount")}>
+                <th className="py-4 px-6 cursor-pointer hover:text-foreground select-none" onClick={() => toggleSort("amount")}>
                   Amount <ArrowUpDown className="inline h-3 w-3 ml-1" />
                 </th>
-                <th className="py-4 px-6 cursor-pointer hover:text-foreground" onClick={() => toggleSort("date")}>
+                <th className="py-4 px-6 cursor-pointer hover:text-foreground select-none" onClick={() => toggleSort("date")}>
                   Timestamp <ArrowUpDown className="inline h-3 w-3 ml-1" />
                 </th>
                 <th className="py-4 px-6 text-right">Admin</th>
@@ -299,7 +467,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
             </thead>
             <tbody className="divide-y divide-border/40 text-xs font-semibold text-muted-foreground">
               {paginatedPayments.length === 0 ? (
-                <tr><td colSpan={5} className="py-12 text-center text-muted-foreground font-mono text-[11px]">No processed records found.</td></tr>
+                <tr><td colSpan={5} className="py-12 text-center text-muted-foreground font-mono text-[11px]">No processed records found for this filter.</td></tr>
               ) : (
                 paginatedPayments.map((tx: PaymentRecord) => (
                   <tr key={tx.id} className="hover:bg-background/20 transition-colors">
@@ -308,11 +476,11 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
                       {tx.members?.member_id && <div className="text-[10px] font-mono text-muted-foreground mt-0.5">ID: {tx.members.member_id}</div>}
                     </td>
                     <td className="py-4 px-6">
-                      <span className="px-2 py-1 bg-(--theme-color)/10 border border-(--theme-color)/20 text-(--theme-color) rounded text-[9px] font-black tracking-widest">
+                      <span className="px-2 py-1 bg-neutral-800 border border-border rounded text-[9px] font-black tracking-widest" style={{ color: "var(--theme-color)" }}>
                         {formatTxType(tx.tx_type)}
                       </span>
                     </td>
-                    <td className="py-4 px-6 font-mono text-(--theme-color) text-sm">₱ {tx.amount}</td>
+                    <td className="py-4 px-6 font-mono text-sm" style={{ color: "var(--theme-color)" }}>₱ {tx.amount}</td>
                     <td className="py-4 px-6 font-mono text-[11px] text-foreground/80 tracking-tight">
                       {new Date(tx.created_at).toLocaleString("en-US", {
                         month: "short", day: "numeric", year: "numeric",
@@ -341,14 +509,14 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
               <button 
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="p-2 bg-background border border-border rounded-lg text-foreground hover:border-(--theme-color)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="p-2 bg-background border border-border rounded-lg text-foreground hover:border-(--theme-color)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button 
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="p-2 bg-background border border-border rounded-lg text-foreground hover:border-(--theme-color)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="p-2 bg-background border border-border rounded-lg text-foreground hover:border-(--theme-color)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -357,11 +525,11 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
         )}
       </div>
 
-      {/* SYSTEM SECURITY CONSOLE OVERLAY DIALOGS */}
+      {/* SYSTEM SECURITY OVERLAY MODAL */}
       {modalMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
           <div className="w-full max-w-md bg-card border border-destructive/30 rounded-2xl p-8 relative shadow-2xl">
-            <button onClick={() => { setModalMode(null); setSelectedTx(null); setErrorMessage(""); setAdminPassword(""); }} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground">
+            <button onClick={() => { setModalMode(null); setSelectedTx(null); setErrorMessage(""); setAdminPassword(""); }} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground cursor-pointer">
               <X className="h-5 w-5" />
             </button>
 
@@ -370,7 +538,7 @@ export default function ReportDashboardClient({ initialData }: { initialData: Re
                 <div className="p-3 bg-destructive/10 text-destructive rounded-2xl border border-destructive/20 mb-3">
                   {modalMode === "hard_all" ? <AlertOctagon className="h-8 w-8" /> : <ShieldAlert className="h-8 w-8" />}
                 </div>
-                <h3 className="text-lg font-black font-montserrat text-destructive uppercase tracking-wide">
+                <h3 className="text-lg font-black text-destructive uppercase tracking-wide">
                   {modalMode === "hard_all" ? "Nuclear Purge Authorization" : "Hard Delete Authentication"}
                 </h3>
                 

@@ -55,7 +55,7 @@ export default async function MembersPage({ searchParams }: PageProps) {
 
       {/* DATA TABLE */}
       <div className="bg-[#161616] border border-neutral-800 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-neutral-800 bg-neutral-900/30 text-[10px] uppercase font-black tracking-widest text-neutral-500">
@@ -63,9 +63,11 @@ export default async function MembersPage({ searchParams }: PageProps) {
                 <th className="py-3.5 px-6">Full Name</th>
                 <th className="py-3.5 px-6">Contact Info</th>
                 <th className="py-3.5 px-6">Emergency Phone</th>
+                <th className="py-3.5 px-6">Creation Date</th>
+                <th className="py-3.5 px-6">Last Renewed</th>
                 <th className="py-3.5 px-6">Expiration Date</th>
                 <th className="py-3.5 px-6">Status</th>
-                <th className="py-3.5 px-6 text-right">Actions</th>
+                <th className="py-3.5 px-6 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/40 text-xs font-semibold">
@@ -91,12 +93,24 @@ export default async function MembersPage({ searchParams }: PageProps) {
                       {member.emergency_phone || <span className="text-neutral-600 italic">None</span>}
                     </td>
                     <td className="py-4 px-6 font-mono text-neutral-400">
+                      {member.created_at
+                        ? new Date(member.created_at).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
+                        : "N/A"
+                      }
+                    </td>
+                    <td className="py-4 px-6 font-mono text-neutral-400">
+                      {member.last_renewed_at
+                        ? new Date(member.last_renewed_at).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
+                        : "N/A"
+                      }
+                    </td>
+                    <td className="py-4 px-6 font-mono text-neutral-400">
                       {member.expires_at
                         ? new Date(member.expires_at).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
                         : "N/A"
                       }
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4 text-center">
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
                         member.status === "active"
                           ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
